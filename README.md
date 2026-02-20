@@ -116,6 +116,34 @@ print(f"Duration: {sp.T/86400:.2f} days")
 - TDI channel transformations (XYZ ↔ AET)
 - Noise analysis utilities
 
+## Building the Documentation
+
+First, install [Pandoc](https://pandoc.org/installing.html) (required by nbsphinx to render the example notebook):
+
+```bash
+# macOS
+brew install pandoc
+
+# Linux (Debian/Ubuntu)
+sudo apt-get install pandoc
+```
+
+Then install the docs dependencies and run `sphinx-build` from the repo root:
+
+```bash
+pip install -e ".[docs]"
+sphinx-build -b html docs docs/_build/html
+```
+
+Or with uv:
+
+```bash
+uv pip install -e ".[docs]"
+uv run sphinx-build -b html docs docs/_build/html
+```
+
+Open `docs/_build/html/index.html` in your browser to view the result.
+
 ## License
 
 MIT License - see LICENSE file for details.
