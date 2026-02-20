@@ -16,6 +16,14 @@ from scipy.signal.windows import blackman, blackmanharris, hamming, hann, tukey
 if TYPE_CHECKING:
     from .mojito_loader import MojitoData
 
+__all__ = [
+    "SignalProcessor",
+    "process_pipeline",
+]
+
+# Default Kaiser window beta parameter for anti-aliasing filter
+KAISER_BETA_DEFAULT = 31.0
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,7 +31,7 @@ class SignalProcessor:
     """
     Signal processor for multi-channel time series data.
 
-    Handles filtering, decimation, trimming, and windowing while automatically
+    Handles filtering, downsampling, trimming, and windowing while automatically
     tracking sampling parameters (fs, N, T, dt).
 
     Parameters
@@ -51,9 +59,8 @@ class SignalProcessor:
     Example
     -------
     >>> sp = SignalProcessor({'X': x_data, 'Y': y_data}, fs=4.0)
-    >>> filtered = sp.bandpass_filter(low=1e-4, high=1.0, order=6)
-    >>> decimated, new_fs = sp.decimate(factor=2)
-    >>> trimmed = sp.trim(duration=3600)
+    >>> filtered = sp.filter(low=1e-4, high=1.0, order=6)
+    >>> trimmed = sp.trim(fraction=0.02)  # Trim 2% total (1% each end)
     >>> windowed = sp.apply_window(window='tukey', alpha=0.05)
     """
 
@@ -85,24 +92,29 @@ class SignalProcessor:
         self.dt = 1.0 / self.fs
         self.T = self.N * self.dt
 
-    def bandpass_filter(
+    def filter(
         self,
-        low: float,
-        high: float,
         *,
-        order: int = 6,
+        low: Optional[float] = None,
+        high: Optional[float] = None,
+        order: int = 2,
         filter_type: str = "butterworth",
         zero_phase: bool = True,
     ) -> Dict[str, np.ndarray]:
         """
-        Apply bandpass filter to all channels.
+        Apply filter to all channels (auto-detects highpass/lowpass/bandpass).
+
+        Automatically determines filter type based on provided cutoff frequencies:
+        - Only `low` set: highpass filter
+        - Only `high` set: lowpass filter
+        - Both `low` and `high` set: bandpass filter
 
         Parameters
         ----------
-        low : float
-            Lower cutoff frequency in Hz
-        high : float
-            Upper cutoff frequency in Hz
+        low : float, optional
+            Lower cutoff frequency in Hz (highpass)
+        high : float, optional
+            Upper cutoff frequency in Hz (lowpass)
         order : int, optional
             Filter order (default: 6)
         filter_type : str, optional
@@ -116,102 +128,34 @@ class SignalProcessor:
         -------
         filtered_data : dict
             Dictionary of filtered channel data
+
+        Raises
+        ------
+        ValueError
+            If neither `low` nor `high` is provided
+
+        Examples
+        --------
+        >>> # Highpass only
+        >>> sp.filter(low=5e-6, order=2)
+        >>> # Lowpass only
+        >>> sp.filter(high=0.1, order=2)
+        >>> # Bandpass
+        >>> sp.filter(low=1e-4, high=0.1, order=6)
         """
-        return self._apply_filter(
-            low,
-            high,
-            "bandpass",
-            order=order,
-            filter_type=filter_type,
-            zero_phase=zero_phase,
-        )
+        if low is None and high is None:
+            raise ValueError("Must specify at least one of 'low' or 'high' cutoff")
 
-    def lowpass_filter(
-        self,
-        cutoff: float,
-        order: int = 6,
-        filter_type: str = "butterworth",
-        zero_phase: bool = True,
-    ) -> Dict[str, np.ndarray]:
-        """
-        Apply lowpass filter to all channels.
-
-        Parameters
-        ----------
-        cutoff : float
-            Cutoff frequency in Hz
-        order : int, optional
-            Filter order (default: 6)
-        filter_type : str, optional
-            Filter type (default: 'butterworth')
-        zero_phase : bool, optional
-            Use zero-phase filtering if True (default: True)
-
-        Returns
-        -------
-        filtered_data : dict
-            Dictionary of filtered channel data
-        """
-        return self._apply_filter(
-            cutoff,
-            None,
-            "lowpass",
-            order=order,
-            filter_type=filter_type,
-            zero_phase=zero_phase,
-        )
-
-    def highpass_filter(
-        self,
-        cutoff: float,
-        order: int = 6,
-        filter_type: str = "butterworth",
-        zero_phase: bool = True,
-    ) -> Dict[str, np.ndarray]:
-        """
-        Apply highpass filter to all channels.
-
-        Parameters
-        ----------
-        cutoff : float
-            Cutoff frequency in Hz
-        order : int, optional
-            Filter order (default: 6)
-        filter_type : str, optional
-            Filter type (default: 'butterworth')
-        zero_phase : bool, optional
-            Use zero-phase filtering if True (default: True)
-
-        Returns
-        -------
-        filtered_data : dict
-            Dictionary of filtered channel data
-        """
-        return self._apply_filter(
-            cutoff,
-            None,
-            "highpass",
-            order=order,
-            filter_type=filter_type,
-            zero_phase=zero_phase,
-        )
-
-    def _apply_filter(
-        self,
-        low_or_cutoff: float,
-        high: Optional[float],
-        btype: str,
-        *,
-        order: int,
-        filter_type: str,
-        zero_phase: bool,
-    ) -> Dict[str, np.ndarray]:
-        """Internal method to apply filter to all channels."""
-        # Determine critical frequencies
-        if btype == "bandpass":
-            Wn = [low_or_cutoff, high]
-        else:
-            Wn = low_or_cutoff
+        # Auto-detect filter type
+        if low is not None and high is not None:
+            btype = "bandpass"
+            Wn = [low, high]
+        elif low is not None:
+            btype = "highpass"
+            Wn = low
+        else:  # high is not None
+            btype = "lowpass"
+            Wn = high
 
         # Design filter
         filter_funcs = {
@@ -246,7 +190,10 @@ class SignalProcessor:
         return filtered_data
 
     def downsample(
-        self, target_fs: float, window: tuple = ("kaiser", 5.0), padtype: str = "line"
+        self,
+        target_fs: float,
+        window: tuple = ("kaiser", KAISER_BETA_DEFAULT),
+        padtype: str = "line",
     ) -> Tuple[Dict[str, np.ndarray], float]:
         """
         Resample all channels to a target sampling rate using polyphase filtering.
@@ -255,11 +202,6 @@ class SignalProcessor:
         anti-aliasing filter via polyphase decomposition. Accepts arbitrary
         rational target rates (e.g., 4 Hz -> 0.4 Hz), unlike ``decimate``
         which requires an integer factor.
-
-        Recommended pipeline order: filter → trim → truncate → resample_poly
-        → window → FFT. Apply signal conditioning (e.g., high-pass) before
-        downsampling so the polyphase filter sees clean data; ``resample_poly``
-        handles the anti-aliasing low-pass internally.
 
         Parameters
         ----------
@@ -312,8 +254,8 @@ class SignalProcessor:
         Examples
         --------
         >>> sp = SignalProcessor({'X': x_data, 'Y': y_data}, fs=4.0)
-        >>> sp.highpass_filter(cutoff=5e-6, order=2)
-        >>> sp.trim(duration=trim_duration)
+        >>> sp.filter(low=5e-6, order=2)
+        >>> sp.trim(fraction=0.022)  # Trim 2.2% total
         >>> resampled, new_fs = sp.downsample(target_fs=1.0)
         >>> print(new_fs)   # 1.0
         """
@@ -348,43 +290,45 @@ class SignalProcessor:
 
         return resampled_data, self.fs
 
-    def trim(
-        self, duration: float, from_each_end: bool = True
-    ) -> Dict[str, np.ndarray]:
+    def trim(self, fraction: float) -> Dict[str, np.ndarray]:
         """
-        Trim data by removing specified duration.
+        Trim data by removing a fraction of the dataset.
 
         Parameters
         ----------
-        duration : float
-            Duration to remove in seconds
-        from_each_end : bool, optional
-            If True, removes `duration` from both start and end.
-            If False, removes `duration` only from the start (default: True)
+        fraction : float
+            Total fraction of data to remove (e.g., 0.01 = 1%).
 
         Returns
         -------
         trimmed_data : dict
             Dictionary of trimmed channel data
-        """
-        trim_samples = int(duration / self.dt)
 
-        if from_each_end:
-            if 2 * trim_samples >= self.N:
-                raise ValueError(
-                    f"Cannot trim {2*duration}s from {self.T}s data. "
-                    f"Total trim exceeds data length."
-                )
-            trimmed_data = {
-                ch: arr[trim_samples:-trim_samples] for ch, arr in self.data.items()
-            }
-        else:
-            if trim_samples >= self.N:
-                raise ValueError(
-                    f"Cannot trim {duration}s from {self.T}s data. "
-                    f"Trim exceeds data length."
-                )
-            trimmed_data = {ch: arr[trim_samples:] for ch, arr in self.data.items()}
+        Raises
+        ------
+        ValueError
+            If fraction is not in range [0, 1] or would remove all data
+
+        Examples
+        --------
+        >>> # Trim 2% total (1% from each end)
+        >>> sp.trim(fraction=0.02)
+        >>> # Trim 5% from start only
+        >>> sp.trim(fraction=0.05)
+        """
+        if not 0 <= fraction < 1:
+            raise ValueError(f"fraction must be in [0, 1), got {fraction}")
+
+        # Split fraction equally between both ends
+        trim_samples = int(self.N * fraction / 2)
+        if 2 * trim_samples >= self.N:
+            raise ValueError(
+                f"Cannot trim {fraction*100:.1f}% from both ends "
+                f"({2*trim_samples} samples). Would remove all data."
+            )
+        trimmed_data = {
+            ch: arr[trim_samples:-trim_samples] for ch, arr in self.data.items()
+        }
 
         # Update internal state
         self.data = trimmed_data
@@ -474,164 +418,6 @@ class SignalProcessor:
         )
 
 
-# ============================================================================
-# Standalone utility functions (for quick one-off operations)
-# ============================================================================
-
-
-def bandpass_filter(
-    data: np.ndarray,
-    fs: float,
-    low: float,
-    high: float,
-    *,
-    order: int = 6,
-    filter_type: str = "butterworth",
-    zero_phase: bool = True,
-) -> np.ndarray:
-    """
-    Apply bandpass filter to single-channel data.
-
-    Parameters
-    ----------
-    data : ndarray
-        Input signal
-    fs : float
-        Sampling frequency in Hz
-    low : float
-        Lower cutoff frequency in Hz
-    high : float
-        Upper cutoff frequency in Hz
-    order : int, optional
-        Filter order (default: 6)
-    filter_type : str, optional
-        Filter type: 'butterworth', 'chebyshev1', 'chebyshev2', 'bessel'
-    zero_phase : bool, optional
-        Use zero-phase filtering (default: True)
-
-    Returns
-    -------
-    filtered : ndarray
-        Filtered signal
-    """
-    filter_funcs = {
-        "butterworth": signal.butter,
-        "chebyshev1": signal.cheby1,
-        "chebyshev2": signal.cheby2,
-        "bessel": signal.bessel,
-    }
-
-    sos = filter_funcs[filter_type](
-        order, [low, high], btype="bandpass", fs=fs, output="sos"
-    )
-
-    if zero_phase:
-        return signal.sosfiltfilt(sos, data)
-    return signal.sosfilt(sos, data)
-
-
-def apply_window(
-    data: np.ndarray, window: str = "tukey", **window_params
-) -> np.ndarray:
-    """
-    Apply window function to single-channel data.
-
-    Parameters
-    ----------
-    data : ndarray
-        Input signal
-    window : str, optional
-        Window type: 'tukey', 'blackmanharris', 'hann', 'hamming', 'blackman'
-    **window_params :
-        Additional parameters (e.g., alpha=0.05 for Tukey)
-
-    Returns
-    -------
-    windowed : ndarray
-        Windowed signal
-    """
-    N = len(data)
-
-    window_funcs = {
-        "tukey": lambda N: tukey(N, alpha=window_params.get("alpha", 0.05)),
-        "blackmanharris": blackmanharris,
-        "hann": hann,
-        "hamming": hamming,
-        "blackman": blackman,
-    }
-
-    win = window_funcs[window](N)
-    return data * win
-
-
-def downsample(
-    data: np.ndarray,
-    fs: float,
-    target_fs: float,
-    window: tuple = ("kaiser", 31.0),
-    padtype: str = "line",
-) -> Tuple[np.ndarray, float]:
-    """
-    Resample a single-channel signal to a target sampling rate.
-
-    Standalone convenience function mirroring ``SignalProcessor.downsample``,
-    for quick one-off operations without constructing a full processor.
-
-    Parameters
-    ----------
-    data : ndarray
-        1D input signal.
-    fs : float
-        Current sampling frequency in Hz.
-    target_fs : float
-        Desired output sampling frequency in Hz. Must satisfy
-        ``0 < target_fs <= fs``.
-    window : tuple or array_like, optional
-        Window for FIR anti-aliasing filter design (default: ``('kaiser', 31.0)``).
-    padtype : str, optional
-        Edge-padding strategy (default: ``'line'``). See
-        ``scipy.signal.resample_poly`` for full options.
-
-    Returns
-    -------
-    resampled : ndarray
-        Resampled signal.
-    new_fs : float
-        Actual output sampling frequency in Hz.
-
-    Raises
-    ------
-    ValueError
-        If ``target_fs <= 0`` or ``target_fs > fs``.
-
-    Examples
-    --------
-    >>> from MojitoUtils import downsample
-    >>> x_ds, new_fs = downsample(x, fs=4.0, target_fs=1.0)
-    >>> print(new_fs)   # 1.0
-    """
-    if target_fs <= 0:
-        raise ValueError(f"target_fs must be positive, got {target_fs}")
-    if target_fs > fs:
-        raise ValueError(
-            f"target_fs ({target_fs} Hz) exceeds fs ({fs} Hz). "
-            f"This function is for downsampling only."
-        )
-
-    ratio = Fraction(target_fs / fs).limit_denominator(10000)
-    up, down = ratio.numerator, ratio.denominator
-
-    if up == 0:
-        raise ValueError(
-            f"Cannot represent target_fs={target_fs} Hz as a rational "
-            f"fraction of {fs} Hz within limit_denominator=10000."
-        )
-
-    resampled = signal.resample_poly(data, up, down, window=window, padtype=padtype)
-    new_fs = fs * up / down
-    return resampled, new_fs
-
-
 def process_pipeline(
     data: "MojitoData",
     channels: Optional[List[str]] = None,
@@ -682,49 +468,20 @@ def process_pipeline(
         Dataset is split into non-overlapping segments of this length.
         Each segment is independently windowed. Set to ``None`` to disable
         segmentation (returns single segment with full dataset).
+        Note: Remainder samples shorter than a full segment are discarded.
     window_kwargs : dict, optional
         Windowing parameters. Keys:
         - ``window`` (str): Window type - 'tukey', 'hann', etc. (default: 'tukey')
         - ``alpha`` (float): Taper fraction for Tukey window (default: 0.025)
 
-    Regments : dict of SignalProcessor
+    Returns
+    -------
+    segments : dict of SignalProcessor
         Dictionary mapping segment names ('segment0', 'segment1', ...) to
         SignalProcessor objects. Each segment contains windowed data ready
         for FFT analysis. Access via ``segments['segment0'].data``,
-        ``segments['segment0'].fs``, etcdy for FFT analysis. Access windowed arrays via
-        ``sp.data``, and sampling parameters via ``sp.fs``, ``sp.dt``,
-        ``sp.N``, ``sp.T``.
+        ``segments['segment0'].fs``, etc.
 
-    Examples
-    --------
-    >>> from MojitoProcessor import load_mojito_l1, process_pipeline
-    >>> data = load_mojito_l1("mojito.h5")
-    >>> , segment into 4-day chunks
-    >>> segments = process_pipeline(
-    ...     data,
-    ...     filter_kwargs={'highpass_cutoff': 5e-6, 'order': 2},
-    ...     downsample_kwargs={'target_fs': 0.4},
-    ...     truncate_kwargs={'days': 4.0}
-    ... )
-    >>>
-    >>> # Access first segment
-    >>> sp0 = segments['segment0']
-    >>> print(f"Segment 0: {sp0.N} samples, {sp0.T/86400:.2f} days")
-    >>>
-    >>> # Band-pass filter with segmentation
-    >>> segmentsBand-pass filter
-    >>> sp = process_pipeline(
-    ...     data,
-    ...     filter_kwargs={
-    ...         'highpass_cutoff': 5e-6,
-    ...         'lowpass_cutoff': 0.02,
-    ...         'order': 2
-    ...     },
-    ...     downsample_kwargs={'target_fs': 0.1},
-    ...     trim_kwargs={'fraction': 0.022},
-    ...     truncate_kwargs={'days': 4.0},
-    ...     window_kwargs={'window': 'tukey', 'alpha': 0.025}
-    ... )
     """
     # Set defaults
     if channels is None:
@@ -748,10 +505,10 @@ def process_pipeline(
 
     # Extract downsample parameters
     target_fs = downsample_kwargs.get("target_fs", None)
-    kaiser_window = downsample_kwargs.get("kaiser_window", 31.0)
+    kaiser_window = downsample_kwargs.get("kaiser_window", KAISER_BETA_DEFAULT)
 
     # Extract trim parameters
-    trim_fraction = trim_kwargs.get("fraction", 0.022)
+    trim_fraction = trim_kwargs.get("fraction", 0.02)
 
     # Extract truncate parameters
     truncate_days = truncate_kwargs.get("days", 4.0) if truncate_kwargs else None
@@ -759,6 +516,10 @@ def process_pipeline(
     # Extract window parameters
     window = window_kwargs.get("window", "tukey")
     window_alpha = window_kwargs.get("alpha", 0.025)
+
+    # Validate Tukey window alpha
+    if window == "tukey" and not 0 <= window_alpha <= 1:
+        raise ValueError(f"Tukey window alpha must be in [0, 1], got {window_alpha}")
 
     missing = [ch for ch in channels if ch not in data.tdis]
     if missing:
@@ -783,7 +544,7 @@ def process_pipeline(
     # Step 2 — filter (band-pass or high-pass)
     # ------------------------------------------------------------------ #
     if lowpass_cutoff is not None:
-        sp.bandpass_filter(
+        sp.filter(
             low=highpass_cutoff,
             high=lowpass_cutoff,
             order=filter_order,
@@ -796,8 +557,8 @@ def process_pipeline(
             filter_order,
         )
     else:
-        sp.highpass_filter(
-            cutoff=highpass_cutoff,
+        sp.filter(
+            low=highpass_cutoff,
             order=filter_order,
             zero_phase=True,
         )
@@ -810,7 +571,7 @@ def process_pipeline(
     # ------------------------------------------------------------------ #
     # Step 3 — downsample (optional)
     # ------------------------------------------------------------------ #
-    if target_fs is not None:
+    if target_fs is not None and target_fs != sp.fs:
         pre_fs, pre_N = sp.fs, sp.N
         sp.downsample(target_fs=target_fs, window=("kaiser", kaiser_window))
         logger.info(
@@ -828,11 +589,10 @@ def process_pipeline(
     # ------------------------------------------------------------------ #
     # Step 4 — trim edge artefacts
     # ------------------------------------------------------------------ #
-    trim_duration = trim_fraction * sp.N * sp.dt
-    sp.trim(duration=trim_duration, from_each_end=True)
+    sp.trim(fraction=trim_fraction)
     logger.info(
-        "Step 4/5 | Trim: %.1f h from each end → %d samples (%.2f days)",
-        trim_duration / 3600,
+        "Step 4/5 | Trim: %.2f%% from each end → %d samples (%.2f days)",
+        trim_fraction,
         sp.N,
         sp.T / 86400,
     )
@@ -879,18 +639,17 @@ def process_pipeline(
 
         return segments
 
-    else:
-        # No segmentation - apply window to full dataset
-        sp.apply_window(window=window, alpha=window_alpha)
-        logger.info(
-            "Step 5/5 | Window: %s (alpha=%.4g) applied to full dataset | "
-            "Ready — N=%d, fs=%.4g Hz, dt=%.4g s, T=%.4f days",
-            window,
-            window_alpha,
-            sp.N,
-            sp.fs,
-            sp.dt,
-            sp.T / 86400,
-        )
+    # No segmentation - apply window to full dataset
+    sp.apply_window(window=window, alpha=window_alpha)
+    logger.info(
+        "Step 5/5 | Window: %s (alpha=%.4g) applied to full dataset | "
+        "Ready — N=%d, fs=%.4g Hz, dt=%.4g s, T=%.4f days",
+        window,
+        window_alpha,
+        sp.N,
+        sp.fs,
+        sp.dt,
+        sp.T / 86400,
+    )
 
-        return {"segment0": sp}
+    return {"segment0": sp}
