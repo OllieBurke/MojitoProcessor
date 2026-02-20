@@ -5,6 +5,7 @@ repos:
       - id: nb-clean
         name: clean notebooks
         args: [--remove-empty-cells, --remove-all-notebook-metadata]
+        exclude: ^docs/notebooks/processing_pipeline\.ipynb$
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
