@@ -4,13 +4,27 @@ Postprocessing tools for LISA Mojito L01 data for use with L2D noise analysis.
 
 ## Installation
 
+### From Test PyPI (Development)
+
+This package is currently available on Test PyPI for testing:
+
 ```bash
-pip install mojito-processor
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ mojito-processor
 ```
 
 Or with [uv](https://docs.astral.sh/uv/) (recommended):
 
 ```bash
+uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ mojito-processor
+```
+
+### From PyPI (Coming Soon)
+
+Once stable, the package will be available on PyPI for simpler installation:
+
+```bash
+pip install mojito-processor
+# or
 uv pip install mojito-processor
 ```
 
