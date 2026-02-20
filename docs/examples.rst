@@ -6,4 +6,4 @@ The following notebook demonstrates a full processing pipeline using MojitoProce
 .. toctree::
    :maxdepth: 2
 
-   ../Example_Notebooks/processing_pipeline
+   notebooks/processing_pipeline
