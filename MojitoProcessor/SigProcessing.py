@@ -146,6 +146,30 @@ class SignalProcessor:
         if low is None and high is None:
             raise ValueError("Must specify at least one of 'low' or 'high' cutoff")
 
+        nyquist = self.fs / 2
+
+        # Validate cutoff frequencies
+        if low is not None:
+            if low <= 0:
+                raise ValueError(f"low cutoff must be positive, got {low}")
+            if low >= nyquist:
+                raise ValueError(
+                    f"low cutoff ({low} Hz) must be below Nyquist ({nyquist} Hz)"
+                )
+        if high is not None:
+            if high <= 0:
+                raise ValueError(f"high cutoff must be positive, got {high}")
+            if high >= nyquist:
+                raise ValueError(
+                    f"high cutoff ({high} Hz) must be below Nyquist ({nyquist} Hz)"
+                )
+        if low is not None and high is not None and low >= high:
+            raise ValueError(
+                f"low cutoff ({low} Hz) must be less than high cutoff ({high} Hz)"
+            )
+        if order <= 0 or not isinstance(order, int):
+            raise ValueError(f"Filter order must be a positive integer, got {order}")
+
         # Auto-detect filter type
         if low is not None and high is not None:
             btype = "bandpass"
@@ -157,12 +181,25 @@ class SignalProcessor:
             btype = "lowpass"
             Wn = high
 
-        # Design filter
+        # Design filter — cheby1/cheby2 require extra ripple/attenuation args
+        # butterworth/bessel called via partial to unify the interface
+        def _butter(n, wn, **kw):
+            return signal.butter(n, wn, **kw)
+
+        def _bessel(n, wn, **kw):
+            return signal.bessel(n, wn, **kw)
+
+        def _cheby1(n, wn, **kw):
+            return signal.cheby1(n, 1.0, wn, **kw)
+
+        def _cheby2(n, wn, **kw):
+            return signal.cheby2(n, 40.0, wn, **kw)
+
         filter_funcs = {
-            "butterworth": signal.butter,
-            "chebyshev1": signal.cheby1,
-            "chebyshev2": signal.cheby2,
-            "bessel": signal.bessel,
+            "butterworth": _butter,
+            "bessel": _bessel,
+            "chebyshev1": _cheby1,
+            "chebyshev2": _cheby2,
         }
 
         if filter_type not in filter_funcs:
@@ -319,8 +356,20 @@ class SignalProcessor:
         if not 0 <= fraction < 1:
             raise ValueError(f"fraction must be in [0, 1), got {fraction}")
 
+        # No trimming needed
+        if fraction == 0:
+            return dict(self.data)
+
         # Split fraction equally between both ends
         trim_samples = int(self.N * fraction / 2)
+        if trim_samples == 0:
+            logger.warning(
+                "trim: fraction %.2e too small to remove any samples "
+                "(need at least %d samples per end). Skipping trim.",
+                fraction,
+                1,
+            )
+            return dict(self.data)
         if 2 * trim_samples >= self.N:
             raise ValueError(
                 f"Cannot trim {fraction*100:.1f}% from both ends "
@@ -378,12 +427,23 @@ class SignalProcessor:
                 f"Choose from {list(window_funcs.keys())}"
             )
 
-        # Set default parameters
+        # Set default alpha for tukey
         if window == "tukey" and "alpha" not in window_params:
             window_params["alpha"] = 0.05
 
-        # Generate window
-        win = window_funcs[window](self.N, window_params)
+        # Warn if extra kwargs passed to non-tukey windows (they will be ignored)
+        if window != "tukey" and window_params:
+            logger.warning(
+                "apply_window: extra parameters %s ignored for '%s' window",
+                list(window_params.keys()),
+                window,
+            )
+
+        # For tukey, only pass 'alpha' — any other kwargs would crash scipy
+        if window == "tukey":
+            win = tukey(self.N, alpha=window_params.get("alpha", 0.05))
+        else:
+            win = window_funcs[window](self.N, {})
 
         # Apply window to all channels
         windowed_data = {ch: arr * win for ch, arr in self.data.items()}
@@ -520,6 +580,39 @@ def process_pipeline(
     # Validate Tukey window alpha
     if window == "tukey" and not 0 <= window_alpha <= 1:
         raise ValueError(f"Tukey window alpha must be in [0, 1], got {window_alpha}")
+
+    # Validate filter order
+    filter_order_raw = filter_kwargs.get("order", 2)
+    if not isinstance(filter_order_raw, int) or filter_order_raw <= 0:
+        raise ValueError(
+            f"filter order must be a positive integer, got {filter_order_raw}"
+        )
+
+    # Validate kaiser_window beta
+    if kaiser_window < 0:
+        raise ValueError(
+            f"kaiser_window beta must be non-negative, got {kaiser_window}"
+        )
+
+    # Validate truncate_days
+    if truncate_days is not None and truncate_days <= 0:
+        raise ValueError(
+            f"truncate_kwargs 'days' must be positive, got {truncate_days}"
+        )
+
+    # Warn if lowpass_cutoff exceeds Nyquist of the target sampling rate
+    if lowpass_cutoff is not None and target_fs is not None:
+        target_nyquist = target_fs / 2
+        if lowpass_cutoff > target_nyquist:
+            logger.warning(
+                "lowpass_cutoff (%.4g Hz) exceeds Nyquist of target_fs "
+                "(%.4g Hz). Frequencies above %.4g Hz will be aliased after "
+                "downsampling. Consider setting lowpass_cutoff <= %.4g Hz.",
+                lowpass_cutoff,
+                target_nyquist,
+                target_nyquist,
+                target_nyquist,
+            )
 
     missing = [ch for ch in channels if ch not in data.tdis]
     if missing:
