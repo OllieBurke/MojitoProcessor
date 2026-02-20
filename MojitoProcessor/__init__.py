@@ -12,9 +12,6 @@ from .mojito_loader import (
 )
 from .SigProcessing import (
     SignalProcessor,
-    apply_window,
-    bandpass_filter,
-    downsample,
     process_pipeline,
 )
 
@@ -28,8 +25,5 @@ __all__ = [
     "MojitoData",
     "OrbitData",
     "SignalProcessor",
-    "bandpass_filter",
-    "apply_window",
-    "downsample",
     "process_pipeline",
 ]

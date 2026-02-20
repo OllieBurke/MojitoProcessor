@@ -33,9 +33,3 @@ Signal Processing
    :show-inheritance:
 
 .. autofunction:: MojitoProcessor.SigProcessing.process_pipeline
-
-.. automethod:: MojitoProcessor.SigProcessing.SignalProcessor.filter
-
-.. automethod:: MojitoProcessor.SigProcessing.SignalProcessor.apply_window
-
-.. automethod:: MojitoProcessor.SigProcessing.SignalProcessor.downsample
