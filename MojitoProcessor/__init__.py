@@ -10,10 +10,7 @@ from .mojito_loader import (
     truncate_mojito_data,
     truncate_orbit_data,
 )
-from .SigProcessing import (
-    SignalProcessor,
-    process_pipeline,
-)
+from .SigProcessing import SignalProcessor, process_pipeline
 
 __all__ = [
     "__version__",
