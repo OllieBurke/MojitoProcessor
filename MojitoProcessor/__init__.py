@@ -10,13 +10,7 @@ from .mojito_loader import (
     truncate_mojito_data,
     truncate_orbit_data,
 )
-from .SigProcessing import (
-    SignalProcessor,
-    apply_window,
-    bandpass_filter,
-    downsample,
-    process_pipeline,
-)
+from .SigProcessing import SignalProcessor, process_pipeline
 
 __all__ = [
     "__version__",
@@ -28,8 +22,5 @@ __all__ = [
     "MojitoData",
     "OrbitData",
     "SignalProcessor",
-    "bandpass_filter",
-    "apply_window",
-    "downsample",
     "process_pipeline",
 ]
