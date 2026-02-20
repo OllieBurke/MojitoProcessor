@@ -2,9 +2,12 @@
 
 import os
 import sys
+from pathlib import Path
 
-# Add the repo root to sys.path so autodoc can import the package
-sys.path.insert(0, os.path.abspath(".."))
+# Add the repo root to sys.path so autodoc can import the package.
+# Compute it relative to this conf.py file, not the current working directory.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
 
 # -- Project information -----------------------------------------------------
 project = "MojitoProcessor"
