@@ -34,8 +34,8 @@ Signal Processing
 
 .. autofunction:: MojitoProcessor.SigProcessing.process_pipeline
 
-.. autofunction:: MojitoProcessor.SigProcessing.bandpass_filter
+.. automethod:: MojitoProcessor.SigProcessing.SignalProcessor.filter
 
-.. autofunction:: MojitoProcessor.SigProcessing.apply_window
+.. automethod:: MojitoProcessor.SigProcessing.SignalProcessor.apply_window
 
-.. autofunction:: MojitoProcessor.SigProcessing.downsample
+.. automethod:: MojitoProcessor.SigProcessing.SignalProcessor.downsample
