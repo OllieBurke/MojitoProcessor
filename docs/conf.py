@@ -1,6 +1,5 @@
 """Sphinx configuration for MojitoProcessor documentation."""
 
-import os
 import sys
 from pathlib import Path
 
