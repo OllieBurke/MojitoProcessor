@@ -10,22 +10,30 @@ Requirements
 - ``scipy >= 1.10``
 - ``matplotlib >= 3.5``
 
-Install from PyPI
+Install
+-------
+
+.. note::
+
+   ``mojito-processor`` is currently available on **TestPyPI**. Use the
+   commands below to install from there.
+
+.. code-block:: bash
+
+   pip install --index-url https://test.pypi.org/simple/ \
+               --extra-index-url https://pypi.org/simple/ \
+               mojito-processor
+
+Or with `uv <https://docs.astral.sh/uv/>`_ (recommended):
+
+.. code-block:: bash
+
+   uv pip install --index-url https://test.pypi.org/simple/ \
+                  --extra-index-url https://pypi.org/simple/ \
+                  mojito-processor
+
+Development Setup
 -----------------
-
-.. code-block:: bash
-
-   pip install mojito-processor
-
-Install with uv (recommended)
-------------------------------
-
-.. code-block:: bash
-
-   uv pip install mojito-processor
-
-Development install
--------------------
 
 .. code-block:: bash
 
@@ -41,9 +49,5 @@ Development install
    # Install pre-commit hooks
    uv run pre-commit install
 
-Optional: Jupyter notebooks
-----------------------------
-
-.. code-block:: bash
-
-   pip install "mojito-processor[notebooks]"
+   # Run pre-commit on all files (optional)
+   uv run pre-commit run --all-files
