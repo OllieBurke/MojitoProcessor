@@ -1,17 +1,49 @@
 [project]
-name = "mojito-noise-sprint"
-version = "0.1.0"
-description = "LISA Mojito L1 data loader and noise analysis tools"
+name = "mojito-processor"
+dynamic = ["version"]
+description = "Postprocessing steps from LISA Mojito L01 data for use with L2D noise analysis"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Ollie Burke", email = "ollie.burke@glasgow.ac.uk"},
+]
+keywords = ["LISA", "gravitational-waves", "L01", "L2X", "noise-analysis", "signal-processing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+]
 dependencies = [
-    "corner>=2.2.3",
-    "eryn>=1.2.5",
-    "h5py>=3.15.1",
-    "ipykernel>=7.1.0",
-    "matplotlib>=3.10.7",
-    "numpy>=2.3.5",
-    "scipy>=1.16.3",
+    "h5py>=3.0",
+    "matplotlib>=3.5",
+    "numpy>=2.0",
+    "scipy>=1.10",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.0",
+    "black[jupyter]>=24.10.0",
+    "isort>=5.13.2",
+    "pylint>=3.0",
+    "pre-commit>=3.6.0",
+    "mypy>=1.8.0",
+    "nb-clean>=4.0.1",
+]
+
+[project.optional-dependencies]
+notebooks = [
+    "ipykernel>=7.0",
+    "jupyter>=1.0",
 ]
 
 [build-system]
@@ -20,3 +52,17 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["MojitoProcessor"]
+
+[tool.hatch.version]
+path = "MojitoProcessor/__version__.py"
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+disable_error_code = "import-untyped"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "--cov=MojitoProcessor --cov-report=html --cov-report=term-missing"
