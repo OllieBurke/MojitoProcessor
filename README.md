@@ -66,7 +66,17 @@ print(f"Duration: {sp.T/86400:.2f} days")
 
 ## Building the Documentation
 
-Install the docs dependencies, then run `sphinx-build` from the repo root:
+First, install [Pandoc](https://pandoc.org/installing.html) (required by nbsphinx to render the example notebook):
+
+```bash
+# macOS
+brew install pandoc
+
+# Linux (Debian/Ubuntu)
+sudo apt-get install pandoc
+```
+
+Then install the docs dependencies and run `sphinx-build` from the repo root:
 
 ```bash
 pip install -e ".[docs]"
@@ -81,9 +91,6 @@ uv run sphinx-build -b html docs docs/_build/html
 ```
 
 Open `docs/_build/html/index.html` in your browser to view the result.
-
-> **Note:** [Pandoc](https://pandoc.org/installing.html) must also be installed
-> on your system for nbsphinx to render the example notebook.
 
 ## License
 
