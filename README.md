@@ -1,5 +1,7 @@
 # mojito-processor
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18718620.svg)](https://doi.org/10.5281/zenodo.18718620)
+
 Postprocessing tools for LISA Mojito L01 data for use with L2D noise analysis.
 
 ## Installation
