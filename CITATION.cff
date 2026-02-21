@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "MojitoProcessor"
+version: "0.2.1"
+doi: 10.5281/zenodo.18718620
+date-released: 2026-02-21
+url: "https://github.com/OllieBurke/MojitoProcessor"
+repository-code: "https://github.com/OllieBurke/MojitoProcessor"
+license: MIT
+abstract: "Postprocessing tools for LISA Mojito L01 data for use with L2D noise analysis."
+keywords:
+  - LISA
+  - gravitational-waves
+  - signal-processing
+  - noise-analysis
+authors:
+  - family-names: "Burke"
+    given-names: "Ollie"
+    email: "ollie.burke@glasgow.ac.uk"

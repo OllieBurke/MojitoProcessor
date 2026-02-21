@@ -10,3 +10,4 @@ Postprocessing tools for LISA Mojito L1 data.
    installation
    api
    examples
+   citing
