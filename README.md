@@ -1,7 +1,6 @@
 # mojito-processor
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18718620.svg)](https://doi.org/10.5281/zenodo.18718620)
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages)](https://ollieburke.github.io/MojitoProcessor/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18718620.svg)](https://doi.org/10.5281/zenodo.18718620)[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages)](https://ollieburke.github.io/MojitoProcessor/)
 
 Postprocessing tools for LISA Mojito L01 data for use with L2D noise analysis.
 
