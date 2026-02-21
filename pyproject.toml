@@ -30,6 +30,7 @@ dependencies = [
 [project.urls]
 Documentation = "https://ollieburke.github.io/MojitoProcessor/"
 Repository = "https://github.com/OllieBurke/MojitoProcessor"
+Zenodo = "https://doi.org/10.5281/zenodo.18718620"
 
 [dependency-groups]
 dev = [
