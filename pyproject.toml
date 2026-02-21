@@ -27,6 +27,10 @@ dependencies = [
     "scipy>=1.10",
 ]
 
+[project.urls]
+Documentation = "https://ollieburke.github.io/MojitoProcessor/"
+Repository = "https://github.com/OllieBurke/MojitoProcessor"
+
 [dependency-groups]
 dev = [
     "pytest>=7.0",
