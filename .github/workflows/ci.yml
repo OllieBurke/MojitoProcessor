@@ -38,3 +38,13 @@ jobs:
 
       - name: Lint with pylint
         run: uv run pylint MojitoProcessor
+
+      - name: Run tests
+        run: uv run pytest tests/ --cov=MojitoProcessor --cov-report=xml --cov-report=term-missing -q
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v5
+        if: matrix.python-version == '3.12'
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
