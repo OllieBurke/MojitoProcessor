@@ -11,6 +11,24 @@ The goal of this package is to provide a simple, modular, and well-documented se
 
 This package depends on [`mojito`](https://gitlab.esa.int/lisa-commons/mojito), the official LISA L1 file reader, which is distributed via the ESA GitLab package registry. You must configure this index before installing `mojito-processor`.
 
+With [uv](https://docs.astral.sh/uv/), add the following to your `pyproject.toml` or `uv.toml`:
+
+```toml
+[[tool.uv.index]]
+name = "gitlab-esa-commons"
+url = "https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple"
+
+[tool.uv.sources]
+mojito = { index = "gitlab-esa-commons" }
+```
+
+Or pass the extra index directly on the command line:
+
+```bash
+uv pip install mojito-processor \
+    --extra-index-url https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple
+```
+
 ## Installation
 
 ### From Test PyPI (Development)
@@ -89,9 +107,9 @@ downsample_kwargs = {
 
 # Filter parameters
 filter_kwargs = {
-    "highpass_cutoff": 5e-6,                          # Hz — high-pass cutoff (always applied)
+    "highpass_cutoff": 5e-6,                               # Hz — high-pass cutoff (always applied)
     "lowpass_cutoff": 0.8 * downsample_kwargs["target_fs"],  # Hz — low-pass cutoff (None for high-pass only)
-    "order": 2,                                       # Butterworth filter order
+    "order": 2,                                            # Butterworth filter order
 }
 
 # Trim parameters

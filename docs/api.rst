@@ -1,28 +1,9 @@
 API Reference
 =============
 
-Data Loading
-------------
-
-.. autofunction:: MojitoProcessor.mojito_loader.load_mojito_l1
-
-.. autofunction:: MojitoProcessor.mojito_loader.load_orbits
-
-.. autofunction:: MojitoProcessor.mojito_loader.truncate_mojito_data
-
-.. autofunction:: MojitoProcessor.mojito_loader.truncate_orbit_data
-
-.. autofunction:: MojitoProcessor.mojito_loader.investigate_mojito_file_structure
-
-.. autoclass:: MojitoProcessor.mojito_loader.MojitoData
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: MojitoProcessor.mojito_loader.OrbitData
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Data loading is handled by the `mojito <https://gitlab.esa.int/lisa-commons/mojito>`_
+package (``mojito.reader.MojitoL1File``). This package focuses exclusively on
+the signal processing steps applied to that data.
 
 Signal Processing
 -----------------
