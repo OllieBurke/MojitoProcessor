@@ -11,6 +11,8 @@ The goal of this package is to provide a simple, modular, and well-documented se
 
 This package depends on [`mojito`](https://gitlab.esa.int/lisa-commons/mojito), the official LISA L1 file reader, which is distributed via the ESA GitLab package registry. You must configure this index before installing `mojito-processor`.
 
+**Warning**: The `mojito` package is currently private and requires ESA GitLab access. If you do not have access, please contact the package maintainers. Similarly, we require the mojito package to be version 0.4.0 so must be installed from source.
+
 With [uv](https://docs.astral.sh/uv/), add the following to your `pyproject.toml` or `uv.toml`:
 
 ```toml
