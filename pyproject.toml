@@ -19,6 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
+    "ipykernel>=7.2.0",
     "matplotlib>=3.5",
     "mojito>=0.2.3",
     "numpy>=2.0",
