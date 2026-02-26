@@ -56,6 +56,19 @@ class TestSignalProcessorInit:
         assert sp.channels == ["X"]
         assert sp.N == 50
 
+    def test_t0_defaults_to_none(self, sp_data):
+        sp = SignalProcessor(sp_data, fs=4.0)
+        assert sp.t0 is None
+
+    def test_t0_stored_as_float(self, sp_data):
+        sp = SignalProcessor(sp_data, fs=4.0, t0=9.77298893e7)
+        assert isinstance(sp.t0, float)
+        assert sp.t0 == pytest.approx(9.77298893e7)
+
+    def test_t0_none_stays_none(self, sp_data):
+        sp = SignalProcessor(sp_data, fs=4.0, t0=None)
+        assert sp.t0 is None
+
 
 # =============================================================================
 # SignalProcessor._update_params
@@ -331,6 +344,21 @@ class TestTrim:
         assert isinstance(result, dict)
         assert set(result.keys()) == {"X", "Y", "Z"}
 
+    def test_t0_advances_after_trim(self, sp_data):
+        """t0 must advance by trim_samples * dt when trimming."""
+        t0_init = 9.77298893e7
+        sp = SignalProcessor(sp_data, fs=4.0, t0=t0_init)
+        fraction = 0.1
+        trim_samples = int(sp.N * fraction / 2)
+        expected_t0 = t0_init + trim_samples * sp.dt
+        sp.trim(fraction=fraction)
+        assert sp.t0 == pytest.approx(expected_t0)
+
+    def test_t0_none_unchanged_after_trim(self, sp_data):
+        sp = SignalProcessor(sp_data, fs=4.0, t0=None)
+        sp.trim(fraction=0.1)
+        assert sp.t0 is None
+
 
 # =============================================================================
 # SignalProcessor.apply_window
@@ -441,6 +469,14 @@ class TestSignalProcessorRepr:
     def test_repr_contains_fs(self, simple_sp):
         r = repr(simple_sp)
         assert "4.0" in r or "4.000" in r
+
+    def test_repr_shows_t0_none(self, simple_sp):
+        assert "t0=None" in repr(simple_sp)
+
+    def test_repr_shows_t0_value(self, sp_data):
+        sp = SignalProcessor(sp_data, fs=4.0, t0=9.77298893e7)
+        assert "t0=" in repr(sp)
+        assert "None" not in repr(sp)
 
 
 # =============================================================================
@@ -575,7 +611,7 @@ class TestProcessPipeline:
             pipeline_mojito_data, filter_kwargs={"highpass_cutoff": 0.01}
         )
         sp = result["segment0"]
-        assert sp.fs == pytest.approx(pipeline_mojito_data.fs)
+        assert sp.fs == pytest.approx(pipeline_mojito_data["fs"])
 
     # ── Bandpass filter ───────────────────────────────────────────────────────
 
@@ -660,3 +696,44 @@ class TestProcessPipeline:
         assert any(
             "aliased" in msg or "lowpass_cutoff" in msg for msg in caplog.messages
         )
+
+    # ── t0 propagation ───────────────────────────────────────────────────────
+
+    def test_raises_if_t_tdi_absent(self, pipeline_mojito_data):
+        """process_pipeline must raise if t_tdi is missing from the data dict."""
+        data_no_t_tdi = {k: v for k, v in pipeline_mojito_data.items() if k != "t_tdi"}
+        with pytest.raises(ValueError, match="t_tdi"):
+            process_pipeline(data_no_t_tdi, filter_kwargs={"highpass_cutoff": 0.01})
+
+    def test_t0_set_from_t_tdi(self, pipeline_mojito_data):
+        """segment0.t0 must equal t_tdi[0] when trim fraction is zero."""
+        t_tdi_start = float(pipeline_mojito_data["t_tdi"][0])
+        result = process_pipeline(
+            pipeline_mojito_data,
+            filter_kwargs={"highpass_cutoff": 0.01},
+            trim_kwargs={"fraction": 0.0},  # no trim so t0 == t_tdi[0]
+        )
+        assert result["segment0"].t0 == pytest.approx(t_tdi_start)
+
+    def test_t0_advances_after_trim_in_pipeline(self, pipeline_mojito_data):
+        """After trimming, segment0.t0 must be strictly greater than t_tdi[0]."""
+        t_tdi_start = float(pipeline_mojito_data["t_tdi"][0])
+        result = process_pipeline(
+            pipeline_mojito_data,
+            filter_kwargs={"highpass_cutoff": 0.01},
+            trim_kwargs={"fraction": 0.1},
+        )
+        assert result["segment0"].t0 > t_tdi_start
+
+    def test_segment_t0_increases_monotonically(self, pipeline_mojito_data):
+        """Each successive segment must have a strictly larger t0."""
+        result = process_pipeline(
+            pipeline_mojito_data,
+            filter_kwargs={"highpass_cutoff": 0.01},
+            truncate_kwargs={"days": 0.001},
+        )
+        if len(result) < 2:
+            pytest.skip("Not enough segments produced to test monotonicity")
+        t0_values = [result[f"segment{i}"].t0 for i in range(len(result))]
+        for a, b in zip(t0_values, t0_values[1:]):
+            assert b > a
