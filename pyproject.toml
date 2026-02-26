@@ -3,7 +3,7 @@ name = "mojito-processor"
 dynamic = ["version"]
 description = "Postprocessing steps from LISA Mojito L01 data for use with L2D noise analysis"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
     {name = "Ollie Burke", email = "ollie.burke@glasgow.ac.uk"},
@@ -14,15 +14,14 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Astronomy",
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    "h5py>=3.0",
+    "ipykernel>=7.2.0",
     "matplotlib>=3.5",
+    "mojito>=0.2.3",
     "numpy>=2.0",
     "scipy>=1.10",
 ]
@@ -59,6 +58,10 @@ docs = [
     "sphinx-autodoc-typehints",
 ]
 
+[[tool.uv.index]]
+name = "gitlab-esa-commons"
+url = "https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -79,3 +82,6 @@ disable_error_code = "import-untyped"
 testpaths = ["tests"]
 python_files = "test_*.py"
 addopts = "--cov=MojitoProcessor --cov-report=html --cov-report=term-missing"
+
+[tool.uv.sources]
+mojito = { index = "gitlab-esa-commons" }

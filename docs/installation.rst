@@ -4,11 +4,39 @@ Installation
 Requirements
 ------------
 
-- Python ≥ 3.10
-- ``h5py >= 3.0``
+- Python ≥ 3.12
+- `mojito <https://gitlab.esa.int/lisa-commons/mojito>`_ ≥ 0.2.3
 - ``numpy >= 2.0``
 - ``scipy >= 1.10``
 - ``matplotlib >= 3.5``
+
+.. note::
+
+   ``mojito`` is distributed via the ESA GitLab package registry, not PyPI.
+   You must configure this extra index before installing ``mojito-processor``
+   (see below).
+
+ESA GitLab Index Setup
+----------------------
+
+With `uv <https://docs.astral.sh/uv/>`_, add the following to your
+``pyproject.toml`` or ``uv.toml``:
+
+.. code-block:: toml
+
+   [[tool.uv.index]]
+   name = "gitlab-esa-commons"
+   url = "https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple"
+
+   [tool.uv.sources]
+   mojito = { index = "gitlab-esa-commons" }
+
+Or pass the extra index directly on the command line:
+
+.. code-block:: bash
+
+   uv pip install mojito-processor \
+       --extra-index-url https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple
 
 Install
 -------

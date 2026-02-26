@@ -7,14 +7,11 @@ multi-channel time series data with automatic state tracking.
 
 import logging
 from fractions import Fraction
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy import signal
 from scipy.signal.windows import blackman, blackmanharris, hamming, hann, tukey
-
-if TYPE_CHECKING:
-    from .mojito_loader import MojitoData
 
 __all__ = [
     "SignalProcessor",
@@ -64,7 +61,12 @@ class SignalProcessor:
     >>> windowed = sp.apply_window(window='tukey', alpha=0.05)
     """
 
-    def __init__(self, data: Dict[str, np.ndarray], fs: float):
+    def __init__(
+        self,
+        data: Dict[str, np.ndarray],
+        fs: float,
+        t0: Optional[float] = None,
+    ):
         """
         Initialize SignalProcessor with multi-channel data.
 
@@ -74,9 +76,14 @@ class SignalProcessor:
             Dictionary mapping channel names to 1D numpy arrays
         fs : float
             Sampling frequency in Hz
+        t0 : float, optional
+            TCB timestamp of the first sample in seconds. Should be set from
+            the L1 data file (``data["t_tdi"][0]``). Defaults to ``None``
+            when working outside of a full Mojito pipeline.
         """
         self.data = {ch: arr.copy() for ch, arr in data.items()}
         self.fs = float(fs)
+        self.t0 = float(t0) if t0 is not None else None
         self.channels = list(data.keys())
 
         # Validate all channels have same length
@@ -381,6 +388,8 @@ class SignalProcessor:
 
         # Update internal state
         self.data = trimmed_data
+        if self.t0 is not None:
+            self.t0 += trim_samples * self.dt
         self._update_params()
 
         return trimmed_data
@@ -414,11 +423,11 @@ class SignalProcessor:
         """
         # Define available windows
         window_funcs = {
-            "tukey": lambda N, p: tukey(N, **p),
-            "blackmanharris": lambda N, p: blackmanharris(N),
-            "hann": lambda N, p: hann(N),
-            "hamming": lambda N, p: hamming(N),
-            "blackman": lambda N, p: blackman(N),
+            "tukey": lambda N, _: tukey(N),
+            "blackmanharris": lambda N, _: blackmanharris(N),
+            "hann": lambda N, _: hann(N),
+            "hamming": lambda N, _: hamming(N),
+            "blackman": lambda N, _: blackman(N),
         }
 
         if window not in window_funcs:
@@ -454,6 +463,110 @@ class SignalProcessor:
 
         return windowed_data
 
+    def periodogram(self) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
+        """
+        Compute the one-sided power spectral density for each channel.
+
+        The data is assumed to have already been windowed (e.g. by
+        :meth:`apply_window`), so no additional window is applied here.
+
+        Normalisation follows Parseval's theorem: the integral of the
+        one-sided PSD over positive frequencies equals the mean square
+        of the signal.
+
+        Returns
+        -------
+        freqs : ndarray
+            Frequency array in Hz, shape ``(N//2 + 1,)``.
+        psds : dict
+            Dictionary mapping channel names to one-sided PSD arrays
+            (units²/Hz), each with the same shape as ``freqs``.
+
+        Examples
+        --------
+        >>> freqs, psds = sp.periodogram()
+        >>> plt.loglog(freqs[1:], psds['X'][1:])
+        """
+        freqs = np.fft.rfftfreq(self.N, d=self.dt)
+        psds = {}
+        for ch in self.channels:
+            fft_vals = np.fft.rfft(self.data[ch])
+            psd = (np.abs(fft_vals) ** 2) / (self.fs * self.N)
+            psd[1:-1] *= 2  # double non-DC/Nyquist bins for one-sided spectrum
+            psds[ch] = psd
+        return freqs, psds
+
+    def fft(self) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
+        """
+        Compute the one-sided complex FFT spectrum for each channel.
+
+        The data is assumed to have already been windowed (e.g. by
+        :meth:`apply_window`), so no additional window is applied here.
+        Returns raw complex amplitudes from ``numpy.fft.rfft``.
+
+        Returns
+        -------
+        freqs : ndarray
+            Frequency array in Hz, shape ``(N//2 + 1,)``.
+        ffts : dict
+            Dictionary mapping channel names to complex FFT arrays,
+            each with shape ``(N//2 + 1,)``.
+
+        Examples
+        --------
+        >>> freqs, ffts = sp.fft()
+        >>> plt.loglog(freqs[1:], np.abs(ffts['X'][1:]))
+        """
+        freqs = np.fft.rfftfreq(self.N, d=self.dt)
+        ffts = {}
+        for ch in self.channels:
+            ffts[ch] = np.fft.rfft(self.data[ch])
+        return freqs, ffts
+
+    def to_aet(self) -> "SignalProcessor":
+        """
+        Transform XYZ Michelson channels to noise-orthogonal AET channels.
+
+        Uses the standard equal-arm combination:
+
+        .. code-block:: text
+
+            A = (Z - X) / sqrt(2)
+            E = (X - 2Y + Z) / sqrt(6)
+            T = (X + Y + Z) / sqrt(3)
+
+        Returns a new :class:`SignalProcessor` with channels ``['A', 'E', 'T']``,
+        inheriting ``fs``, ``t0``, and all derived parameters from the original.
+
+        Returns
+        -------
+        SignalProcessor
+            New processor with AET channel data.
+
+        Raises
+        ------
+        ValueError
+            If any of the channels ``'X'``, ``'Y'``, ``'Z'`` are missing.
+
+        Examples
+        --------
+        >>> sp_xyz = processed_segments['segment0']
+        >>> sp_aet = sp_xyz.to_aet()
+        >>> freqs, psds = sp_aet.periodogram()
+        """
+        missing = {"X", "Y", "Z"} - set(self.channels)
+        if missing:
+            raise ValueError(
+                f"to_aet requires channels {{'X', 'Y', 'Z'}}. " f"Missing: {missing}"
+            )
+        X, Y, Z = self.data["X"], self.data["Y"], self.data["Z"]
+        aet_data = {
+            "A": (Z - X) / np.sqrt(2),
+            "E": (X - 2 * Y + Z) / np.sqrt(6),
+            "T": (X + Y + Z) / np.sqrt(3),
+        }
+        return SignalProcessor(aet_data, fs=self.fs, t0=self.t0)
+
     def get_params(self) -> dict:
         """
         Get current signal parameters.
@@ -472,14 +585,15 @@ class SignalProcessor:
         }
 
     def __repr__(self):
+        t0_str = f"{self.t0:.6g} s" if self.t0 is not None else "None"
         return (
             f"SignalProcessor(channels={self.channels}, "
-            f"N={self.N}, fs={self.fs:.3f} Hz, T={self.T:.2f} s)"
+            f"N={self.N}, fs={self.fs:.3f} Hz, T={self.T:.2f} s, t0={t0_str})"
         )
 
 
 def process_pipeline(
-    data: "MojitoData",
+    data: dict,
     channels: Optional[List[str]] = None,
     *,
     filter_kwargs: Optional[Dict] = None,
@@ -614,17 +728,37 @@ def process_pipeline(
                 target_nyquist,
             )
 
-    missing = [ch for ch in channels if ch not in data.tdis]
+    missing = [ch for ch in channels if ch not in data["tdis"]]
     if missing:
         raise ValueError(
             f"Channels {missing} not found in data. "
-            f"Available: {list(data.tdis.keys())}"
+            f"Available: {list(data['tdis'].keys())}"
+        )
+
+    if "t_tdi" not in data:
+        raise ValueError(
+            "'t_tdi' is required in the data dict. "
+            "Set data['t_tdi'] to the array of TCB timestamps for the TDI samples "
+            "(e.g. tdi_sampling.t() from MojitoL1File)."
+        )
+
+    try:
+        laser_frequency = float(data["metadata"]["laser_frequency"])
+    except KeyError:
+        raise ValueError(
+            "'metadata[\"laser_frequency\"]' is required in the data dict. "
+            "Set data['metadata']['laser_frequency'] to the central laser frequency "
+            "in Hz (e.g. f.laser_frequency from MojitoL1File)."
         )
 
     # ------------------------------------------------------------------ #
-    # Step 1 — initialise with the full dataset
+    # Step 1 — initialise with the full dataset, normalised by laser freq
     # ------------------------------------------------------------------ #
-    sp = SignalProcessor({ch: data.tdis[ch] for ch in channels}, fs=data.fs)
+    sp = SignalProcessor(
+        {ch: data["tdis"][ch] / laser_frequency for ch in channels},
+        fs=data["fs"],
+        t0=float(data["t_tdi"][0]),
+    )
     logger.info(
         "Step 1/5 | Init: %d samples @ %.4g Hz (%.2f days), channels=%s",
         sp.N,
@@ -712,9 +846,12 @@ def process_pipeline(
             start_idx = i * segment_samples
             end_idx = min(start_idx + segment_samples, sp.N)
 
-            # Create segment
+            # Create segment — t0 advances by i full segment lengths after trimming
             segment_data = {ch: arr[start_idx:end_idx] for ch, arr in sp.data.items()}
-            seg_sp = SignalProcessor(segment_data, fs=sp.fs)
+            segment_t0 = (
+                sp.t0 + i * segment_samples * sp.dt if sp.t0 is not None else None
+            )
+            seg_sp = SignalProcessor(segment_data, fs=sp.fs, t0=segment_t0)
 
             # Apply window to this segment
             seg_sp.apply_window(window=window, alpha=window_alpha)
