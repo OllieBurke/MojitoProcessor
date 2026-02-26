@@ -1486,7 +1486,6 @@ wheels = [
 name = "mojito-processor"
 source = { editable = "." }
 dependencies = [
-    { name = "h5py" },
     { name = "matplotlib" },
     { name = "mojito" },
     { name = "numpy" },
@@ -1523,7 +1522,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "furo", marker = "extra == 'docs'" },
-    { name = "h5py", specifier = ">=3.0" },
     { name = "ipykernel", marker = "extra == 'docs'", specifier = ">=7.0" },
     { name = "ipykernel", marker = "extra == 'notebooks'", specifier = ">=7.0" },
     { name = "jupyter", marker = "extra == 'docs'", specifier = ">=1.0" },
