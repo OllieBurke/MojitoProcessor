@@ -463,6 +463,110 @@ class SignalProcessor:
 
         return windowed_data
 
+    def periodogram(self) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
+        """
+        Compute the one-sided power spectral density for each channel.
+
+        The data is assumed to have already been windowed (e.g. by
+        :meth:`apply_window`), so no additional window is applied here.
+
+        Normalisation follows Parseval's theorem: the integral of the
+        one-sided PSD over positive frequencies equals the mean square
+        of the signal.
+
+        Returns
+        -------
+        freqs : ndarray
+            Frequency array in Hz, shape ``(N//2 + 1,)``.
+        psds : dict
+            Dictionary mapping channel names to one-sided PSD arrays
+            (units²/Hz), each with the same shape as ``freqs``.
+
+        Examples
+        --------
+        >>> freqs, psds = sp.periodogram()
+        >>> plt.loglog(freqs[1:], psds['X'][1:])
+        """
+        freqs = np.fft.rfftfreq(self.N, d=self.dt)
+        psds = {}
+        for ch in self.channels:
+            fft_vals = np.fft.rfft(self.data[ch])
+            psd = (np.abs(fft_vals) ** 2) / (self.fs * self.N)
+            psd[1:-1] *= 2  # double non-DC/Nyquist bins for one-sided spectrum
+            psds[ch] = psd
+        return freqs, psds
+
+    def fft(self) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
+        """
+        Compute the one-sided complex FFT spectrum for each channel.
+
+        The data is assumed to have already been windowed (e.g. by
+        :meth:`apply_window`), so no additional window is applied here.
+        Returns raw complex amplitudes from ``numpy.fft.rfft``.
+
+        Returns
+        -------
+        freqs : ndarray
+            Frequency array in Hz, shape ``(N//2 + 1,)``.
+        ffts : dict
+            Dictionary mapping channel names to complex FFT arrays,
+            each with shape ``(N//2 + 1,)``.
+
+        Examples
+        --------
+        >>> freqs, ffts = sp.fft()
+        >>> plt.loglog(freqs[1:], np.abs(ffts['X'][1:]))
+        """
+        freqs = np.fft.rfftfreq(self.N, d=self.dt)
+        ffts = {}
+        for ch in self.channels:
+            ffts[ch] = np.fft.rfft(self.data[ch])
+        return freqs, ffts
+
+    def to_aet(self) -> "SignalProcessor":
+        """
+        Transform XYZ Michelson channels to noise-orthogonal AET channels.
+
+        Uses the standard equal-arm combination:
+
+        .. code-block:: text
+
+            A = (Z - X) / sqrt(2)
+            E = (X - 2Y + Z) / sqrt(6)
+            T = (X + Y + Z) / sqrt(3)
+
+        Returns a new :class:`SignalProcessor` with channels ``['A', 'E', 'T']``,
+        inheriting ``fs``, ``t0``, and all derived parameters from the original.
+
+        Returns
+        -------
+        SignalProcessor
+            New processor with AET channel data.
+
+        Raises
+        ------
+        ValueError
+            If any of the channels ``'X'``, ``'Y'``, ``'Z'`` are missing.
+
+        Examples
+        --------
+        >>> sp_xyz = processed_segments['segment0']
+        >>> sp_aet = sp_xyz.to_aet()
+        >>> freqs, psds = sp_aet.periodogram()
+        """
+        missing = {"X", "Y", "Z"} - set(self.channels)
+        if missing:
+            raise ValueError(
+                f"to_aet requires channels {{'X', 'Y', 'Z'}}. " f"Missing: {missing}"
+            )
+        X, Y, Z = self.data["X"], self.data["Y"], self.data["Z"]
+        aet_data = {
+            "A": (Z - X) / np.sqrt(2),
+            "E": (X - 2 * Y + Z) / np.sqrt(6),
+            "T": (X + Y + Z) / np.sqrt(3),
+        }
+        return SignalProcessor(aet_data, fs=self.fs, t0=self.t0)
+
     def get_params(self) -> dict:
         """
         Get current signal parameters.
@@ -638,11 +742,20 @@ def process_pipeline(
             "(e.g. tdi_sampling.t() from MojitoL1File)."
         )
 
+    try:
+        laser_frequency = float(data["metadata"]["laser_frequency"])
+    except KeyError:
+        raise ValueError(
+            "'metadata[\"laser_frequency\"]' is required in the data dict. "
+            "Set data['metadata']['laser_frequency'] to the central laser frequency "
+            "in Hz (e.g. f.laser_frequency from MojitoL1File)."
+        )
+
     # ------------------------------------------------------------------ #
-    # Step 1 — initialise with the full dataset
+    # Step 1 — initialise with the full dataset, normalised by laser freq
     # ------------------------------------------------------------------ #
     sp = SignalProcessor(
-        {ch: data["tdis"][ch] for ch in channels},
+        {ch: data["tdis"][ch] / laser_frequency for ch in channels},
         fs=data["fs"],
         t0=float(data["t_tdi"][0]),
     )

@@ -705,6 +705,31 @@ class TestProcessPipeline:
         with pytest.raises(ValueError, match="t_tdi"):
             process_pipeline(data_no_t_tdi, filter_kwargs={"highpass_cutoff": 0.01})
 
+    def test_raises_if_laser_frequency_absent(self, pipeline_mojito_data):
+        """process_pipeline must raise if metadata.laser_frequency is missing."""
+        data_no_meta = {
+            k: v for k, v in pipeline_mojito_data.items() if k != "metadata"
+        }
+        with pytest.raises(ValueError, match="laser_frequency"):
+            process_pipeline(data_no_meta, filter_kwargs={"highpass_cutoff": 0.01})
+
+    def test_output_normalised_by_laser_frequency(self, pipeline_mojito_data):
+        """Output channel data must equal input / laser_frequency."""
+        laser_freq = pipeline_mojito_data["metadata"]["laser_frequency"]
+        raw_X = pipeline_mojito_data["tdis"]["X"].copy()
+        result = process_pipeline(
+            pipeline_mojito_data,
+            filter_kwargs={"highpass_cutoff": 0.01},
+            trim_kwargs={"fraction": 0.0},
+            window_kwargs={"window": "tukey", "alpha": 0.0},  # rectangular — no taper
+        )
+        # With no trim and a rectangular window, segment0.data["X"] should equal
+        # the filtered-then-normalised X. We just check the RMS scale is right.
+        sp = result["segment0"]
+        rms_out = np.sqrt(np.mean(sp.data["X"] ** 2))
+        rms_raw = np.sqrt(np.mean(raw_X**2))
+        assert rms_out == pytest.approx(rms_raw / laser_freq, rel=0.1)
+
     def test_t0_set_from_t_tdi(self, pipeline_mojito_data):
         """segment0.t0 must equal t_tdi[0] when trim fraction is zero."""
         t_tdi_start = float(pipeline_mojito_data["t_tdi"][0])
@@ -737,3 +762,160 @@ class TestProcessPipeline:
         t0_values = [result[f"segment{i}"].t0 for i in range(len(result))]
         for a, b in zip(t0_values, t0_values[1:]):
             assert b > a
+
+
+# =============================================================================
+# SignalProcessor.periodogram
+# =============================================================================
+
+
+class TestPeriodogram:
+    def test_returns_tuple_of_two(self, simple_sp):
+        result = simple_sp.periodogram()
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_freqs_shape(self, simple_sp):
+        freqs, _ = simple_sp.periodogram()
+        assert len(freqs) == simple_sp.N // 2 + 1
+
+    def test_freqs_start_at_zero(self, simple_sp):
+        freqs, _ = simple_sp.periodogram()
+        assert freqs[0] == pytest.approx(0.0)
+
+    def test_freqs_end_at_nyquist(self, simple_sp):
+        freqs, _ = simple_sp.periodogram()
+        assert freqs[-1] == pytest.approx(simple_sp.fs / 2)
+
+    def test_psds_dict_has_all_channels(self, simple_sp):
+        _, psds = simple_sp.periodogram()
+        assert set(psds.keys()) == {"X", "Y", "Z"}
+
+    def test_psd_shape_matches_freqs(self, simple_sp):
+        freqs, psds = simple_sp.periodogram()
+        for psd in psds.values():
+            assert len(psd) == len(freqs)
+
+    def test_psd_non_negative(self, simple_sp):
+        _, psds = simple_sp.periodogram()
+        for psd in psds.values():
+            assert np.all(psd >= 0)
+
+    def test_parseval_theorem(self):
+        """Integral of one-sided PSD ≈ variance of the signal (Parseval)."""
+        fs = 10.0
+        n = 4096
+        rng = np.random.default_rng(0)
+        x = rng.standard_normal(n)
+        sp = SignalProcessor({"X": x}, fs=fs)
+        freqs, psds = sp.periodogram()
+        df = freqs[1] - freqs[0]
+        # Integral of one-sided PSD should equal mean square of signal
+        assert np.sum(psds["X"]) * df == pytest.approx(np.mean(x**2), rel=1e-6)
+
+
+# =============================================================================
+# SignalProcessor.fft
+# =============================================================================
+
+
+class TestFft:
+    def test_returns_tuple_of_two(self, simple_sp):
+        result = simple_sp.fft()
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_freqs_shape(self, simple_sp):
+        freqs, _ = simple_sp.fft()
+        assert len(freqs) == simple_sp.N // 2 + 1
+
+    def test_freqs_start_at_zero(self, simple_sp):
+        freqs, _ = simple_sp.fft()
+        assert freqs[0] == pytest.approx(0.0)
+
+    def test_freqs_end_at_nyquist(self, simple_sp):
+        freqs, _ = simple_sp.fft()
+        assert freqs[-1] == pytest.approx(simple_sp.fs / 2)
+
+    def test_ffts_dict_has_all_channels(self, simple_sp):
+        _, ffts = simple_sp.fft()
+        assert set(ffts.keys()) == {"X", "Y", "Z"}
+
+    def test_fft_shape_matches_freqs(self, simple_sp):
+        freqs, ffts = simple_sp.fft()
+        for fft_vals in ffts.values():
+            assert len(fft_vals) == len(freqs)
+
+    def test_fft_values_are_complex(self, simple_sp):
+        _, ffts = simple_sp.fft()
+        for fft_vals in ffts.values():
+            assert np.iscomplexobj(fft_vals)
+
+    def test_fft_consistent_with_periodogram(self):
+        """Periodogram PSDs should equal |FFT|^2 / (fs * N) (doubled for interior bins)."""
+        fs = 10.0
+        n = 512
+        rng = np.random.default_rng(1)
+        x = rng.standard_normal(n)
+        sp = SignalProcessor({"X": x}, fs=fs)
+        freqs_f, ffts = sp.fft()
+        freqs_p, psds = sp.periodogram()
+        expected_psd = (np.abs(ffts["X"]) ** 2) / (fs * n)
+        expected_psd[1:-1] *= 2
+        np.testing.assert_allclose(psds["X"], expected_psd, rtol=1e-10)
+
+
+# =============================================================================
+# SignalProcessor.to_aet
+# =============================================================================
+
+
+class TestToAet:
+    def test_returns_signal_processor(self, simple_sp):
+        assert isinstance(simple_sp.to_aet(), SignalProcessor)
+
+    def test_output_channels_are_aet(self, simple_sp):
+        sp_aet = simple_sp.to_aet()
+        assert set(sp_aet.channels) == {"A", "E", "T"}
+
+    def test_fs_inherited(self, simple_sp):
+        sp_aet = simple_sp.to_aet()
+        assert sp_aet.fs == pytest.approx(simple_sp.fs)
+
+    def test_N_inherited(self, simple_sp):
+        sp_aet = simple_sp.to_aet()
+        assert sp_aet.N == simple_sp.N
+
+    def test_t0_inherited(self, sp_data):
+        sp = SignalProcessor(sp_data, fs=4.0, t0=9.77298893e7)
+        sp_aet = sp.to_aet()
+        assert sp_aet.t0 == pytest.approx(sp.t0)
+
+    def test_t0_none_inherited(self, simple_sp):
+        sp_aet = simple_sp.to_aet()
+        assert sp_aet.t0 is None
+
+    def test_raises_if_xyz_missing(self):
+        sp = SignalProcessor({"A": np.zeros(100), "B": np.zeros(100)}, fs=1.0)
+        with pytest.raises(ValueError, match="X.*Y.*Z|Missing"):
+            sp.to_aet()
+
+    def test_aet_values_correct(self):
+        """Check A, E, T values against the analytic formulae."""
+        n = 100
+        X = np.ones(n) * 1.0
+        Y = np.ones(n) * 2.0
+        Z = np.ones(n) * 3.0
+        sp = SignalProcessor({"X": X, "Y": Y, "Z": Z}, fs=1.0)
+        sp_aet = sp.to_aet()
+        assert_array_almost_equal(sp_aet.data["A"], (Z - X) / np.sqrt(2))
+        assert_array_almost_equal(sp_aet.data["E"], (X - 2 * Y + Z) / np.sqrt(6))
+        assert_array_almost_equal(sp_aet.data["T"], (X + Y + Z) / np.sqrt(3))
+
+    def test_original_sp_unchanged(self, simple_sp):
+        """to_aet must not mutate the original SignalProcessor."""
+        original_channels = list(simple_sp.channels)
+        original_X = simple_sp.data["X"].copy()
+        simple_sp.to_aet()
+        assert simple_sp.channels == original_channels
+        assert_array_equal(simple_sp.data["X"], original_X)

@@ -47,4 +47,5 @@ def _pipeline_mojito_data() -> dict:
         },
         "fs": fs,
         "t_tdi": t0_ref + np.arange(n) / fs,
+        "metadata": {"laser_frequency": 2.816e14},  # ~281.6 THz LISA central frequency
     }
