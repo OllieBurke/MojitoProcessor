@@ -1,9 +1,10 @@
 Examples
 ========
 
-The following notebook demonstrates a full processing pipeline using MojitoProcessor.
+The following notebooks demonstrate the full processing pipeline using MojitoProcessor.
 
 .. toctree::
    :maxdepth: 2
 
-   notebooks/processing_pipeline
+   notebooks/noise_processing_pipeline
+   notebooks/gw_processing_pipeline
