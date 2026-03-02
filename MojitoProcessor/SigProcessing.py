@@ -777,12 +777,12 @@ def process_pipeline(
 
     try:
         laser_frequency = float(data["metadata"]["laser_frequency"])
-    except KeyError:
+    except KeyError as exc:
         raise ValueError(
             "'metadata[\"laser_frequency\"]' is required in the data dict. "
             "Set data['metadata']['laser_frequency'] to the central laser frequency "
             "in Hz (e.g. f.laser_frequency from MojitoL1File)."
-        )
+        ) from exc
 
     # ------------------------------------------------------------------ #
     # Step 1 — initialise with the full dataset, normalised by laser freq
@@ -880,7 +880,7 @@ def process_pipeline(
             end_idx = min(start_idx + segment_samples, sp.N)
 
             # Create segment — t0 advances by i full segment lengths after trimming
-            segment_data = {ch: arr[start_idx:end_idx] for ch, arr in sp._data.items()}
+            segment_data = {ch: sp.data[ch][start_idx:end_idx] for ch in sp.channels}
             segment_t0 = (
                 sp.t0 + i * segment_samples * sp.dt if sp.t0 is not None else None
             )
@@ -893,7 +893,7 @@ def process_pipeline(
             segments[f"segment{i}"] = seg_sp
 
         logger.info(
-            "Step 5/5 | Segment: created %d segments × %.2f days each | " "Window: %s",
+            "Step 5/5 | Segment: created %d segments × %.2f days each | Window: %s",
             n_segments,
             truncate_days,
             f"{window} (alpha={window_alpha:.4g})" if do_window else "none",
@@ -905,7 +905,7 @@ def process_pipeline(
     if do_window:
         sp.apply_window(window=window, alpha=window_alpha)
     logger.info(
-        "Step 5/5 | Window: %s | " "Ready — N=%d, fs=%.4g Hz, dt=%.4g s, T=%.4f days",
+        "Step 5/5 | Window: %s | Ready — N=%d, fs=%.4g Hz, dt=%.4g s, T=%.4f days",
         f"{window} (alpha={window_alpha:.4g})" if do_window else "none",
         sp.N,
         sp.fs,
