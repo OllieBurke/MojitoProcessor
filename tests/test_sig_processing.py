@@ -69,6 +69,39 @@ class TestSignalProcessorInit:
         sp = SignalProcessor(sp_data, fs=4.0, t0=None)
         assert sp.t0 is None
 
+    def test_data_t_key_with_t0(self, sp_data):
+        t0 = 9.77298893e7
+        sp = SignalProcessor(sp_data, fs=4.0, t0=t0)
+        t = sp.data["t"]
+        assert len(t) == sp.N
+        assert t[0] == pytest.approx(t0)
+        assert t[-1] == pytest.approx(t0 + (sp.N - 1) * sp.dt)
+        np.testing.assert_allclose(np.diff(t), sp.dt)
+
+    def test_data_t_key_without_t0(self, sp_data):
+        sp = SignalProcessor(sp_data, fs=4.0)
+        t = sp.data["t"]
+        assert len(t) == sp.N
+        assert t[0] == pytest.approx(0.0)
+        assert t[-1] == pytest.approx((sp.N - 1) * sp.dt)
+
+    def test_t_property_matches_data_t(self, sp_data):
+        t0 = 9.77298893e7
+        sp = SignalProcessor(sp_data, fs=4.0, t0=t0)
+        np.testing.assert_array_equal(sp.t, sp.data["t"])
+
+    def test_data_t_not_a_channel(self, sp_data):
+        sp = SignalProcessor(sp_data, fs=4.0)
+        assert "t" not in sp.channels
+
+    def test_data_t_updates_after_trim(self, sp_data):
+        t0 = 1000.0
+        sp = SignalProcessor(sp_data, fs=4.0, t0=t0)
+        sp.trim(fraction=0.1)
+        t = sp.data["t"]
+        assert t[0] == pytest.approx(sp.t0)
+        assert len(t) == sp.N
+
 
 # =============================================================================
 # SignalProcessor._update_params
@@ -626,7 +659,7 @@ class TestProcessPipeline:
 
     def test_segmentation_produces_multiple_segments(self, pipeline_mojito_data):
         """1000 samples at 4 Hz → 250 s. With 0.001-day segments (86.4 s each)
-        and 2% trim we expect floor((~980) / 345) = 2 segments."""
+        we expect floor(1000 / 345) = 2 segments."""
         result = process_pipeline(
             pipeline_mojito_data,
             filter_kwargs={"highpass_cutoff": 0.01},
