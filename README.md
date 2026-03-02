@@ -9,42 +9,32 @@ The goal of this package is to provide a simple, modular, and well-documented se
 
 ## Dependencies
 
-This package depends on [`mojito`](https://gitlab.esa.int/lisa-commons/mojito), the official LISA L1 file reader, which is distributed via the ESA GitLab package registry. You must configure this index before installing `mojito-processor`.
+This package depends on [`mojito`](https://gitlab.esa.int/lisa-commons/mojito), the official LISA L1 file reader.
 
-**Warning**: The `mojito` package is currently private and requires ESA GitLab access. If you do not have access, please contact the package maintainers. Similarly, we require the mojito package to be version 0.4.0 so must be installed from source.
+**Warning**: The `mojito` package is currently private and requires ESA GitLab access. If you do not have access, please contact the package maintainers.
 
-With [uv](https://docs.astral.sh/uv/), add the following to your `pyproject.toml` or `uv.toml`:
-
-```toml
-[[tool.uv.index]]
-name = "gitlab-esa-commons"
-url = "https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple"
-
-[tool.uv.sources]
-mojito = { index = "gitlab-esa-commons" }
-```
-
-Or pass the extra index directly on the command line:
+When installing with [uv](https://docs.astral.sh/uv/) (recommended), `mojito` is fetched automatically from ESA GitLab via the git source declared in `pyproject.toml` — no extra configuration is needed. If you are using `pip`, you must install `mojito` manually before installing `mojito-processor`:
 
 ```bash
-uv pip install mojito-processor \
-    --extra-index-url https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple
+git clone https://gitlab.esa.int/lisa-commons/mojito.git
+cd mojito
+pip install .
 ```
 
 ## Installation
 
 ### From Test PyPI (Development)
 
-This package is currently available on Test PyPI for testing:
-
-```bash
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ mojito-processor
-```
-
-Or with [uv](https://docs.astral.sh/uv/) (recommended):
+This package is currently available on Test PyPI for testing. With [uv](https://docs.astral.sh/uv/) (recommended):
 
 ```bash
 uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ mojito-processor
+```
+
+Or with pip (ensure `mojito` is installed first — see Dependencies above):
+
+```bash
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ mojito-processor
 ```
 
 ### From PyPI (Coming Soon)
