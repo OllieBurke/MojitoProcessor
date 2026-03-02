@@ -76,6 +76,9 @@ path = "MojitoProcessor/__version__.py"
 [tool.isort]
 profile = "black"
 
+[tool.pylint.main]
+fail-under = 9.85
+
 [tool.mypy]
 disable_error_code = "import-untyped"
 
