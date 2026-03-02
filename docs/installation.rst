@@ -5,7 +5,7 @@ Requirements
 ------------
 
 - Python ≥ 3.12
-- `mojito <https://gitlab.esa.int/lisa-commons/mojito>`_ ≥ 0.2.3
+- `mojito <https://gitlab.esa.int/lisa-commons/mojito>`_ ≥ 0.4.0
 - ``numpy >= 2.0``
 - ``scipy >= 1.10``
 - ``matplotlib >= 3.5``
@@ -59,6 +59,15 @@ Or with `uv <https://docs.astral.sh/uv/>`_ (recommended):
    uv pip install --index-url https://test.pypi.org/simple/ \
                   --extra-index-url https://pypi.org/simple/ \
                   mojito-processor
+
+.. note::
+
+   Please remember to install `mojito` from source by locating the `mojito` root directory and running
+
+.. code-block:: bash
+
+   uv pip install .
+
 
 Development Setup
 -----------------

@@ -21,3 +21,9 @@ BibTeX
      doi          = {10.5281/zenodo.18718620},
      url          = {https://doi.org/10.5281/zenodo.18718620}
    }
+
+Similarly, to cite the Mojito datasets and software package, please acknowledge the following:
+
+.. note::
+
+   We acknowledge the use of the Mojito datasets and software package, developed by the LISA Distributed Data Processing Center.
