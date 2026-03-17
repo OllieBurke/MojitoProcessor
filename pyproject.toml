@@ -3,7 +3,7 @@ name = "mojito-processor"
 dynamic = ["version"]
 description = "Postprocessing steps from LISA Mojito L01 data for use with L2D noise analysis"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = {text = "MIT"}
 authors = [
     {name = "Ollie Burke", email = "ollie.burke@glasgow.ac.uk"},
