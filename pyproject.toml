@@ -8,7 +8,6 @@ license = {text = "MIT"}
 authors = [
     {name = "Ollie Burke", email = "ollie.burke@glasgow.ac.uk"},
 ]
-keywords = ["LISA", "gravitational-waves", "L01", "L2X", "noise-analysis", "signal-processing"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -44,12 +43,6 @@ dev = [
     "mypy>=1.8.0",
     "nb-clean>=4.0.1",
 ]
-
-[project.optional-dependencies]
-notebooks = [
-    "ipykernel>=7.0",
-    "jupyter>=1.0",
-]
 docs = [
     "sphinx>=7.0",
     "furo",
@@ -58,6 +51,7 @@ docs = [
     "jupyter>=1.0",
     "sphinx-autodoc-typehints",
 ]
+notebooks = ["ipykernel>=7.0", "jupyter>=1.0"]
 
 [build-system]
 requires = ["hatchling"]
