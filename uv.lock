@@ -1511,7 +1511,18 @@ dependencies = [
     { name = "scipy" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
+dev = [
+    { name = "black", extra = ["jupyter"] },
+    { name = "isort" },
+    { name = "mypy" },
+    { name = "nb-clean" },
+    { name = "pre-commit" },
+    { name = "pylint" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+]
 docs = [
     { name = "furo" },
     { name = "ipykernel" },
@@ -1525,36 +1536,14 @@ notebooks = [
     { name = "jupyter" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "black", extra = ["jupyter"] },
-    { name = "isort" },
-    { name = "mypy" },
-    { name = "nb-clean" },
-    { name = "pre-commit" },
-    { name = "pylint" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-]
-
 [package.metadata]
 requires-dist = [
-    { name = "furo", marker = "extra == 'docs'" },
     { name = "ipykernel", specifier = ">=7.2.0" },
-    { name = "ipykernel", marker = "extra == 'docs'", specifier = ">=7.0" },
-    { name = "ipykernel", marker = "extra == 'notebooks'", specifier = ">=7.0" },
-    { name = "jupyter", marker = "extra == 'docs'", specifier = ">=1.0" },
-    { name = "jupyter", marker = "extra == 'notebooks'", specifier = ">=1.0" },
     { name = "matplotlib", specifier = ">=3.5" },
     { name = "mojito", specifier = ">=0.4.0", index = "https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple" },
-    { name = "nbsphinx", marker = "extra == 'docs'" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "scipy", specifier = ">=1.10" },
-    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7.0" },
-    { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'" },
 ]
-provides-extras = ["docs", "notebooks"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1567,6 +1556,18 @@ dev = [
     { name = "pytest", specifier = ">=7.0" },
     { name = "pytest-cov", specifier = ">=4.0" },
     { name = "pytest-mock", specifier = ">=3.0" },
+]
+docs = [
+    { name = "furo" },
+    { name = "ipykernel", specifier = ">=7.0" },
+    { name = "jupyter", specifier = ">=1.0" },
+    { name = "nbsphinx" },
+    { name = "sphinx", specifier = ">=7.0" },
+    { name = "sphinx-autodoc-typehints" },
+]
+notebooks = [
+    { name = "ipykernel", specifier = ">=7.0" },
+    { name = "jupyter", specifier = ">=1.0" },
 ]
 
 [[package]]
