@@ -22,7 +22,7 @@ classifiers = [
 dependencies = [
     "ipykernel>=7.2.0",
     "matplotlib>=3.5",
-    "mojito>=0.4.0",
+    "mojito>=0.5.0",
     "numpy>=2.0",
     "scipy>=1.10",
 ]
@@ -59,11 +59,6 @@ docs = [
     "sphinx-autodoc-typehints",
 ]
 
-[[tool.uv.index]]
-name = "gitlab-esa-commons"
-url = "https://gitlab.esa.int/api/v4/groups/29349/-/packages/pypi/simple"
-explicit = true
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -84,6 +79,3 @@ disable_error_code = "import-untyped"
 testpaths = ["tests"]
 python_files = "test_*.py"
 addopts = "--cov=MojitoProcessor --cov-report=html --cov-report=term-missing"
-
-[tool.uv.sources]
-mojito = { index = "gitlab-esa-commons" }
