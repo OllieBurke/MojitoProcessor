@@ -1565,7 +1565,6 @@ requires-dist = [
     { name = "ipykernel", specifier = ">=7.2.0" },
     { name = "matplotlib", specifier = ">=3.5" },
     { name = "mojito", specifier = ">=0.5.0" },
-    { name = "nbsphinx", marker = "extra == 'docs'" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "scipy", specifier = ">=1.10" },
 ]
