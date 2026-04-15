@@ -11,7 +11,7 @@ sys.path.insert(0, str(REPO_ROOT))
 # -- Project information -----------------------------------------------------
 project = "MojitoProcessor"
 author = "Ollie Burke"
-release = "0.3.5"
+release = "0.4.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -25,6 +25,13 @@ extensions = [
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# -- Autodoc options ---------------------------------------------------------
+autodoc_member_order = "bysource"
+autodoc_typehints = "description"
+autodoc_typehints_format = "short"
+napoleon_use_param = True
+napoleon_use_rtype = False  # return type shown inline with description
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "furo"
