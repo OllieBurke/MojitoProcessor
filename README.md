@@ -72,26 +72,11 @@ uv run pre-commit run --all-files
 
 ```python
 from mojito.reader import MojitoL1File
-from MojitoProcessor import process_pipeline
+from MojitoProcessor import process_pipeline, load_file
 
 # ── Load Mojito L1 data ───────────────────────────────────────────────────────
 mojito_data_file = "mojito_data.h5"  # Path to your Mojito L1 HDF5 file
-
-with MojitoL1File(mojito_data_file) as f:
-    tdi_sampling = f.tdis.time_sampling
-    data = {
-        "tdis": {
-            "X": f.tdis.x2[:],
-            "Y": f.tdis.y2[:],
-            "Z": f.tdis.z2[:],
-        },
-        "fs":    tdi_sampling.fs,
-        "t_tdi": tdi_sampling.t()[:],
-        "metadata": {
-            "laser_frequency": f.laser_frequency,
-        },
-    }
-
+data = load_file(mojito_data_file)
 # ── Pipeline parameters ───────────────────────────────────────────────────────
 
 # Downsampling parameters
