@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from MojitoProcessor.SigProcessing import SignalProcessor
+from MojitoProcessor.process.sigprocess import SignalProcessor
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SignalProcessor fixtures

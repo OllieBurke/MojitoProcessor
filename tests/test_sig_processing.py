@@ -1,4 +1,4 @@
-"""Unit tests for MojitoProcessor.SigProcessing."""
+"""Unit tests for MojitoProcessor.process.sigprocess."""
 
 import logging
 
@@ -6,7 +6,11 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
-from MojitoProcessor.SigProcessing import SignalProcessor, process_pipeline
+from MojitoProcessor.process.sigprocess import (
+    SignalProcessor,
+    planck_window,
+    process_pipeline,
+)
 
 # =============================================================================
 # SignalProcessor.__init__
@@ -418,7 +422,14 @@ class TestApplyWindow:
         assert_array_almost_equal(sp1.data["X"], sp2.data["X"])
 
     def test_all_window_types_run(self, sp_data):
-        for wtype in ["tukey", "blackmanharris", "hann", "hamming", "blackman"]:
+        for wtype in [
+            "tukey",
+            "blackmanharris",
+            "hann",
+            "hamming",
+            "blackman",
+            "planck",
+        ]:
             sp = SignalProcessor(sp_data.copy(), fs=4.0)
             result = sp.apply_window(window=wtype)
             assert "X" in result
@@ -444,6 +455,21 @@ class TestApplyWindow:
         sp.apply_window(window="hann")
         assert sp.data["X"][0] == pytest.approx(0.0, abs=1e-10)
         assert sp.data["X"][-1] == pytest.approx(0.0, abs=1e-10)
+
+    def test_planck_default_alpha_applied(self):
+        n = 200
+        arr = np.ones(n)
+        sp1 = SignalProcessor({"X": arr.copy()}, fs=1.0)
+        sp2 = SignalProcessor({"X": arr.copy()}, fs=1.0)
+
+        result = sp1.apply_window(window="planck")
+        expected = planck_window(n, alpha=0.05)
+        explicit = sp2.apply_window(window="planck", alpha=0.05)
+
+        assert_array_almost_equal(result["X"], expected)
+        assert_array_almost_equal(result["X"], explicit["X"])
+        assert result["X"][0] == pytest.approx(0.0, abs=1e-12)
+        assert result["X"][-1] == pytest.approx(0.0, abs=1e-12)
 
     def test_fs_unchanged_after_window(self, simple_sp):
         fs_before = simple_sp.fs
@@ -928,9 +954,17 @@ class TestToAet:
         sp_aet = simple_sp.to_aet()
         assert sp_aet.t0 is None
 
+    def test_raises_if_already_aet(self):
+        """Calling to_aet() on a processor that already holds AET channels must raise."""
+        sp = SignalProcessor(
+            {"A": np.zeros(100), "E": np.zeros(100), "T": np.zeros(100)}, fs=1.0
+        )
+        with pytest.raises(ValueError, match="already holds AET"):
+            sp.to_aet()
+
     def test_raises_if_xyz_missing(self):
         sp = SignalProcessor({"A": np.zeros(100), "B": np.zeros(100)}, fs=1.0)
-        with pytest.raises(ValueError, match="X.*Y.*Z|Missing"):
+        with pytest.raises(ValueError, match="Missing"):
             sp.to_aet()
 
     def test_aet_values_correct(self):
