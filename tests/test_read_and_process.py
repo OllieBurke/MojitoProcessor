@@ -1,9 +1,9 @@
-"""Unit tests for MojitoProcessor.pipelines.read_and_process."""
+"""Kept for backward compatibility — tests have moved to test_mojito_pipeline.py."""
 
 import numpy as np
 import pytest
 
-from MojitoProcessor.pipelines.read_and_process import read_and_process
+from MojitoProcessor.pipelines.mojito.pipeline import pipeline as read_and_process
 from MojitoProcessor.process.sigprocess import SignalProcessor
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ class TestReadAndProcessReturnType:
     def test_returns_dict(self, mocker):
         """Result must be a dict."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         result = read_and_process("fake.h5", filter_kwargs={"highpass_cutoff": 0.01})
@@ -50,7 +50,7 @@ class TestReadAndProcessReturnType:
     def test_values_are_signal_processors(self, mocker):
         """Every value in the result dict must be a SignalProcessor."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         result = read_and_process("fake.h5", filter_kwargs={"highpass_cutoff": 0.01})
@@ -60,7 +60,7 @@ class TestReadAndProcessReturnType:
     def test_segment0_present(self, mocker):
         """Default pipeline with no segmentation must return 'segment0'."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         result = read_and_process("fake.h5", filter_kwargs={"highpass_cutoff": 0.01})
@@ -78,7 +78,7 @@ class TestReadAndProcessLoadFile:
     def test_load_file_called_with_path(self, mocker):
         """load_file must be called with the path passed to read_and_process."""
         mock_load = mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         read_and_process("myfile.h5", filter_kwargs={"highpass_cutoff": 0.01})
@@ -88,7 +88,7 @@ class TestReadAndProcessLoadFile:
     def test_load_days_none_by_default(self, mocker):
         """load_days must default to None."""
         mock_load = mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         read_and_process("f.h5", filter_kwargs={"highpass_cutoff": 0.01})
@@ -97,7 +97,7 @@ class TestReadAndProcessLoadFile:
     def test_load_days_passed_through(self, mocker):
         """A non-None load_days must be forwarded to load_file."""
         mock_load = mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         read_and_process("f.h5", load_days=3.0, filter_kwargs={"highpass_cutoff": 0.01})
@@ -115,11 +115,11 @@ class TestReadAndProcessPipelineKwargs:
     def test_filter_kwargs_forwarded(self, mocker):
         """filter_kwargs must be passed verbatim to process_pipeline."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         mock_pipeline = mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.process_pipeline",
+            "MojitoProcessor.pipelines.pipeline.process_pipeline",
             return_value={"segment0": _make_segment()},
         )
         filter_kwargs = {"highpass_cutoff": 0.01, "order": 4}
@@ -129,11 +129,11 @@ class TestReadAndProcessPipelineKwargs:
     def test_downsample_kwargs_forwarded(self, mocker):
         """downsample_kwargs must be passed verbatim to process_pipeline."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         mock_pipeline = mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.process_pipeline",
+            "MojitoProcessor.pipelines.pipeline.process_pipeline",
             return_value={"segment0": _make_segment()},
         )
         ds_kwargs = {"target_fs": 1.0}
@@ -143,11 +143,11 @@ class TestReadAndProcessPipelineKwargs:
     def test_channels_forwarded(self, mocker):
         """channels must be forwarded as a keyword arg to process_pipeline."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         mock_pipeline = mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.process_pipeline",
+            "MojitoProcessor.pipelines.pipeline.process_pipeline",
             return_value={"segment0": _make_segment()},
         )
         read_and_process("f.h5", channels=["X", "Y"])
@@ -156,11 +156,11 @@ class TestReadAndProcessPipelineKwargs:
     def test_window_kwargs_forwarded(self, mocker):
         """window_kwargs must be passed verbatim to process_pipeline."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
         mock_pipeline = mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.process_pipeline",
+            "MojitoProcessor.pipelines.pipeline.process_pipeline",
             return_value={"segment0": _make_segment()},
         )
         win_kwargs = {"window": "hann"}
@@ -179,20 +179,20 @@ class TestReadAndProcessWrite:
     def test_write_not_called_without_output_path(self, mocker):
         """write must not be called when output_path is None."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
-        mock_write = mocker.patch("MojitoProcessor.pipelines.read_and_process.write")
+        mock_write = mocker.patch("MojitoProcessor.pipelines.pipeline.write")
         read_and_process("f.h5", filter_kwargs={"highpass_cutoff": 0.01})
         mock_write.assert_not_called()
 
     def test_write_called_when_output_path_given(self, mocker, tmp_path):
         """write must be called exactly once when output_path is set."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
-        mock_write = mocker.patch("MojitoProcessor.pipelines.read_and_process.write")
+        mock_write = mocker.patch("MojitoProcessor.pipelines.pipeline.write")
         out = tmp_path / "out.h5"
         read_and_process(
             "f.h5", filter_kwargs={"highpass_cutoff": 0.01}, output_path=out
@@ -202,10 +202,10 @@ class TestReadAndProcessWrite:
     def test_write_receives_output_path(self, mocker, tmp_path):
         """write must receive the output_path as its first positional arg."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
-        mock_write = mocker.patch("MojitoProcessor.pipelines.read_and_process.write")
+        mock_write = mocker.patch("MojitoProcessor.pipelines.pipeline.write")
         out = tmp_path / "out.h5"
         read_and_process(
             "f.h5", filter_kwargs={"highpass_cutoff": 0.01}, output_path=out
@@ -216,10 +216,10 @@ class TestReadAndProcessWrite:
         """write must receive the same dict that load_file returned."""
         data = _make_data()
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=data,
         )
-        mock_write = mocker.patch("MojitoProcessor.pipelines.read_and_process.write")
+        mock_write = mocker.patch("MojitoProcessor.pipelines.pipeline.write")
         out = tmp_path / "out.h5"
         read_and_process(
             "f.h5", filter_kwargs={"highpass_cutoff": 0.01}, output_path=out
@@ -229,10 +229,10 @@ class TestReadAndProcessWrite:
     def test_write_receives_filter_kwargs(self, mocker, tmp_path):
         """filter_kwargs must be forwarded to write for metadata storage."""
         mocker.patch(
-            "MojitoProcessor.pipelines.read_and_process.load_file",
+            "MojitoProcessor.pipelines.pipeline.load_file",
             return_value=_make_data(),
         )
-        mock_write = mocker.patch("MojitoProcessor.pipelines.read_and_process.write")
+        mock_write = mocker.patch("MojitoProcessor.pipelines.pipeline.write")
         filter_kwargs = {"highpass_cutoff": 5e-6}
         out = tmp_path / "out.h5"
         read_and_process("f.h5", filter_kwargs=filter_kwargs, output_path=out)
