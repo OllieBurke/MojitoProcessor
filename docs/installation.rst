@@ -22,6 +22,22 @@ Requirements
 ``matplotlib`` is required only for the example notebooks and is not a
 core dependency.
 
+Gap-Handling Extras
+-------------------
+
+The ``gaps`` dependency group adds support for processing gapped LISA data.
+It pulls in ``lisaglitch`` and ``lisa-gap`` (the latter from Test PyPI):
+
+.. code-block:: bash
+
+   uv sync --group gaps
+
+.. note::
+
+   ``torch`` (a transitive dependency of ``lisaglitch``) is excluded by
+   default in ``pyproject.toml`` via ``tool.uv.no-install-package``.
+   It is not needed by MojitoProcessor.
+
 Development Setup
 -----------------
 
@@ -33,7 +49,13 @@ Development Setup
    # Install uv if you haven't already
    curl -LsSf https://astral.sh/uv/install.sh | sh
 
-   # Install the package and all dependency groups
+   # Install core package only
+   uv sync
+
+   # Install with gap-handling support
+   uv sync --group gaps
+
+   # Install all dependency groups (dev, docs, notebooks, gaps)
    uv sync --all-groups
 
    # Install pre-commit hooks

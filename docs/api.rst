@@ -28,3 +28,16 @@ Pipelines
 ---------
 
 .. autofunction:: MojitoProcessor.pipelines.read_and_process.read_and_process
+
+Gap Handling
+------------
+
+.. autofunction:: MojitoProcessor.gaps.mask.apply_raw_mask
+
+.. autofunction:: MojitoProcessor.gaps.mask.apply_mask_to_processor
+
+.. autofunction:: MojitoProcessor.gaps.extend.compute_extended_mask
+
+.. autofunction:: MojitoProcessor.gaps.taper.taper_mask
+
+.. autofunction:: MojitoProcessor.gaps.segment.extract_clean_segments
