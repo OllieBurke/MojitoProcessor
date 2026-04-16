@@ -49,7 +49,13 @@ cd MojitoProcessor
 # Install uv if you haven't already
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install the package and all dependency groups
+# Install core package only
+uv sync
+
+# Install with gap-handling support (lisaglitch + lisa-gap)
+uv sync --group gaps
+
+# Install all dependency groups (dev, docs, notebooks, gaps)
 uv sync --all-groups
 
 # Install pre-commit hooks
@@ -58,6 +64,10 @@ uv run pre-commit install
 # Run pre-commit on all files (optional)
 uv run pre-commit run --all-files
 ```
+
+> **Note:** `torch` (a transitive dependency of `lisaglitch`) is excluded by
+> default via `tool.uv.no-install-package` in `pyproject.toml`. It is not
+> needed by MojitoProcessor.
 
 ## Quick Start
 
@@ -143,6 +153,7 @@ segments = read_and_process(
 
 - **Load** — `load_file` reads LISA Mojito L1 HDF5 files via the [`mojito`](https://gitlab.esa.int/lisa-commons/mojito) package
 - **Process** — `process_pipeline` applies filtering, downsampling, trimming, segmentation, and windowing in a single call
+- **Gaps** — `MojitoProcessor.gaps` handles gapped data: apply raw masks, compute extended masks accounting for filter leakage, and extract contiguous clean segments for gap-free spectral analysis
 - **Write** — `write` saves processed segments and raw auxiliary data (LTTs, orbits, noise estimates) to HDF5
 - **Reload** — `load_processed` reads a file written by `write` back into a `dict[str, SignalProcessor]`, enabling deferred analysis without reprocessing
 - **Pipeline** — `read_and_process` combines load, process, and write into one function, with an optional CLI interface
