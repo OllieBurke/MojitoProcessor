@@ -1,5 +1,6 @@
 """MojitoProcessor - Signal processing utilities for LISA Mojito L1 data"""
 
+from . import gaps, io
 from .__version__ import __version__
 from .io.read import load_file, load_processed
 from .io.write import write
@@ -12,4 +13,6 @@ __all__ = [
     "load_file",
     "load_processed",
     "write",
+    "gaps",
+    "io",
 ]
