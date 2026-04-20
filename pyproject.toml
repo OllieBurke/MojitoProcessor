@@ -42,6 +42,7 @@ dev = [
     "pre-commit>=3.6.0",
     "mypy>=1.8.0",
     "nb-clean>=4.0.1",
+    "twine>=6.2.0",
 ]
 docs = [
     "sphinx>=7.0",
