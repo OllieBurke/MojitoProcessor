@@ -49,3 +49,26 @@ def _pipeline_mojito_data() -> dict:
         "t_tdi": t0_ref + np.arange(n) / fs,
         "metadata": {"laser_frequency": 2.816e14},  # ~281.6 THz LISA central frequency
     }
+
+
+@pytest.fixture(name="pipeline_mojito_data_with_orbits")
+def _pipeline_mojito_data_with_orbits() -> dict:
+    """Data dict with 1000 TDI samples at 4 Hz plus coarse orbit arrays."""
+    np.random.seed(99)
+    n, fs = 1000, 4.0
+    t0_ref = 9.77298893e7
+    n_orbit = 5  # coarser cadence, one sample per ~50 s over 250 s span
+    orbit_times = t0_ref + np.linspace(0, n / fs, n_orbit)
+    return {
+        "tdis": {
+            "X": np.random.randn(n) * 1e-12,
+            "Y": np.random.randn(n) * 1e-12,
+            "Z": np.random.randn(n) * 1e-12,
+        },
+        "fs": fs,
+        "t_tdi": t0_ref + np.arange(n) / fs,
+        "metadata": {"laser_frequency": 2.816e14},
+        "orbits": np.random.randn(n_orbit, 3, 3) * 1e9,  # (n, sc, xyz) [m]
+        "velocities": np.random.randn(n_orbit, 3, 3) * 1e3,  # (n, sc, xyz) [m/s]
+        "orbit_times": orbit_times,
+    }
