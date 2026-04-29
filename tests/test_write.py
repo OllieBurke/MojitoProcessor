@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import pytest
 
-from MojitoProcessor.io.read import load_processed
+from MojitoProcessor.io.read import load_processed, report_info_from_loaded_file
 from MojitoProcessor.io.write import write
 from MojitoProcessor.process.sigprocess import SignalProcessor
 
@@ -184,6 +184,35 @@ class TestWriteProcessedSegments:
         with h5py.File(out, "r") as f:
             np.testing.assert_array_equal(f["processed/segment1/Y"][:], sp._data["Y"])
 
+    # ── segment_ids filter ───────────────────────────────────────────────────
+
+    def test_segment_ids_writes_only_selected(self, tmp_path, two_segments):
+        out = tmp_path / "out.h5"
+        write(out, two_segments, segment_ids=[0])
+        with h5py.File(out, "r") as f:
+            assert "segment0" in f["processed"]
+            assert "segment1" not in f["processed"]
+
+    def test_segment_ids_multiple(self, tmp_path, two_segments):
+        out = tmp_path / "out.h5"
+        write(out, two_segments, segment_ids=[0, 1])
+        with h5py.File(out, "r") as f:
+            assert "segment0" in f["processed"]
+            assert "segment1" in f["processed"]
+
+    def test_segment_ids_none_writes_all(self, tmp_path, two_segments):
+        out = tmp_path / "out.h5"
+        write(out, two_segments, segment_ids=None)
+        with h5py.File(out, "r") as f:
+            assert len(f["processed"]) == 2
+
+    def test_segment_ids_accepts_numpy_array(self, tmp_path, two_segments):
+        out = tmp_path / "out.h5"
+        write(out, two_segments, segment_ids=np.array([1]))
+        with h5py.File(out, "r") as f:
+            assert "segment1" in f["processed"]
+            assert "segment0" not in f["processed"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: pipeline parameters
@@ -279,62 +308,46 @@ class TestWriteRawData:
         assert "emri" in names
         assert "noise" in names
 
-    # Per-segment orbit data
-    def test_orbit_groups_written_per_segment(self, tmp_path, two_segments, raw_data):
+    # Top-level orbit data
+    def test_orbit_group_written_at_top_level(self, tmp_path, two_segments, raw_data):
         out = tmp_path / "out.h5"
         write(out, two_segments, raw_data=raw_data)
         with h5py.File(out, "r") as f:
-            for seg in ["segment0", "segment1"]:
-                assert seg in f["raw"], f"/raw/{seg} missing"
-                assert "orbits" in f[f"raw/{seg}"]
-                assert "positions" in f[f"raw/{seg}/orbits"]
-                assert "velocities" in f[f"raw/{seg}/orbits"]
-                assert "times" in f[f"raw/{seg}/orbits"]
+            assert "orbits" in f["raw"]
+            for key in [
+                "sc_position_1",
+                "sc_position_2",
+                "sc_position_3",
+                "sc_velocity_1",
+                "sc_velocity_2",
+                "sc_velocity_3",
+                "times",
+            ]:
+                assert key in f["raw/orbits"], f"missing key: {key}"
 
-    def test_orbit_data_is_correct_slice(self, tmp_path, two_segments, raw_data):
-        """Orbit positions written for each segment must match the expected time slice."""
+    def test_orbit_positions_match_raw_data(self, tmp_path, two_segments, raw_data):
         out = tmp_path / "out.h5"
         write(out, two_segments, raw_data=raw_data)
-        orbit_times = raw_data["orbit_times"]
         with h5py.File(out, "r") as f:
-            for seg_name, sp in two_segments.items():
-                t_start, t_end = float(sp.t[0]), float(sp.t[-1])
-                i0 = int(np.searchsorted(orbit_times, t_start, side="left"))
-                i1 = int(np.searchsorted(orbit_times, t_end, side="right"))
-                expected = raw_data["orbits"][i0:i1]
+            for i in range(3):
                 np.testing.assert_array_equal(
-                    f[f"raw/{seg_name}/orbits/positions"][:], expected
+                    f[f"raw/orbits/sc_position_{i + 1}"][:],
+                    raw_data["orbits"][:, i, :],
                 )
 
-    def test_orbit_times_are_within_segment(self, tmp_path, two_segments, raw_data):
-        """Orbit times stored for each segment must lie within that segment's window."""
+    def test_orbit_times_match_raw_data(self, tmp_path, two_segments, raw_data):
         out = tmp_path / "out.h5"
         write(out, two_segments, raw_data=raw_data)
         with h5py.File(out, "r") as f:
-            for seg_name, sp in two_segments.items():
-                t_start, t_end = float(sp.t[0]), float(sp.t[-1])
-                orb_t = f[f"raw/{seg_name}/orbits/times"][:]
-                assert np.all(orb_t >= t_start)
-                assert np.all(orb_t <= t_end)
+            np.testing.assert_array_equal(
+                f["raw/orbits/times"][:], raw_data["orbit_times"]
+            )
 
-    def test_orbit_segments_are_disjoint(self, tmp_path, two_segments, raw_data):
-        """The two per-segment orbit arrays must together cover the full range
-        without duplication (total rows == all orbit samples in the joint window)."""
+    def test_orbit_not_written_without_raw_data(self, tmp_path, two_segments):
         out = tmp_path / "out.h5"
-        write(out, two_segments, raw_data=raw_data)
+        write(out, two_segments)
         with h5py.File(out, "r") as f:
-            n0 = f["raw/segment0/orbits/positions"].shape[0]
-            n1 = f["raw/segment1/orbits/positions"].shape[0]
-        # Neither segment should be empty
-        assert n0 > 0
-        assert n1 > 0
-        # Combined should equal the total number of orbit samples in the full window
-        orbit_times = raw_data["orbit_times"]
-        t_min = float(two_segments["segment0"].t[0])
-        t_max = float(two_segments["segment1"].t[-1])
-        i0 = int(np.searchsorted(orbit_times, t_min, side="left"))
-        i1 = int(np.searchsorted(orbit_times, t_max, side="right"))
-        assert n0 + n1 == i1 - i0
+            assert "raw" not in f
 
     # Per-segment LTT data
     def test_ltt_groups_written_per_segment(self, tmp_path, two_segments, raw_data):
@@ -480,48 +493,96 @@ class TestLoadProcessed:
         assert raw["metadata"]["laser_frequency"] == pytest.approx(2.816e14)
         assert "emri" in raw["metadata"]["pipeline_names"]
 
-    def test_per_segment_orbit_keys_present(self, tmp_path, two_segments, raw_data):
-        out = tmp_path / "out.h5"
-        write(out, two_segments, raw_data=raw_data)
-        _, raw = load_processed(out)
-        for seg in ["segment0", "segment1"]:
-            assert seg in raw
-            assert "orbits" in raw[seg]
-            assert "velocities" in raw[seg]
-            assert "orbit_times" in raw[seg]
-
     def test_per_segment_ltt_keys_present(self, tmp_path, two_segments, raw_data):
         out = tmp_path / "out.h5"
         write(out, two_segments, raw_data=raw_data)
         _, raw = load_processed(out)
         for seg in ["segment0", "segment1"]:
-            assert "ltts" in raw[seg]
-            assert "ltt_derivatives" in raw[seg]
-            assert "ltt_times" in raw[seg]
+            ltt_key = f"{seg}_ltts"
+            assert ltt_key in raw
+            assert "ltts" in raw[ltt_key]
+            assert "ltt_derivatives" in raw[ltt_key]
+            assert "ltt_times" in raw[ltt_key]
 
-    def test_per_segment_orbit_data_matches_write(
-        self, tmp_path, two_segments, raw_data
-    ):
-        """Orbit positions returned by load_processed must match what write() stored."""
+    # ── segment_ids filter ───────────────────────────────────────────────────
+
+    def test_segment_ids_loads_only_selected(self, tmp_path, two_segments):
+        out = tmp_path / "out.h5"
+        write(out, two_segments)
+        segments, _ = load_processed(out, segment_ids=[0])
+        assert "segment0" in segments
+        assert "segment1" not in segments
+
+    def test_segment_ids_multiple(self, tmp_path, two_segments):
+        out = tmp_path / "out.h5"
+        write(out, two_segments)
+        segments, _ = load_processed(out, segment_ids=[0, 1])
+        assert set(segments.keys()) == {"segment0", "segment1"}
+
+    def test_segment_ids_none_loads_all(self, tmp_path, two_segments):
+        out = tmp_path / "out.h5"
+        write(out, two_segments)
+        segments, _ = load_processed(out, segment_ids=None)
+        assert set(segments.keys()) == {"segment0", "segment1"}
+
+    def test_segment_ids_filters_ltt_raw_data(self, tmp_path, two_segments, raw_data):
+        """LTT raw data must only be loaded for the requested segments."""
         out = tmp_path / "out.h5"
         write(out, two_segments, raw_data=raw_data)
-        _, raw = load_processed(out)
-        orbit_times = raw_data["orbit_times"]
-        for seg_name, sp in two_segments.items():
-            t_start, t_end = float(sp.t[0]), float(sp.t[-1])
-            i0 = int(np.searchsorted(orbit_times, t_start, side="left"))
-            i1 = int(np.searchsorted(orbit_times, t_end, side="right"))
-            expected = raw_data["orbits"][i0:i1]
-            np.testing.assert_array_equal(raw[seg_name]["orbits"], expected)
+        _, raw = load_processed(out, segment_ids=[0])
+        assert "segment0_ltts" in raw
+        assert "segment1_ltts" not in raw
 
-    def test_per_segment_orbit_times_within_segment(
-        self, tmp_path, two_segments, raw_data
-    ):
+    def test_segment_ids_accepts_numpy_array(self, tmp_path, two_segments):
+        out = tmp_path / "out.h5"
+        write(out, two_segments)
+        segments, _ = load_processed(out, segment_ids=np.array([1]))
+        assert "segment1" in segments
+        assert "segment0" not in segments
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tests: report_info_from_loaded_file
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestReportInfoFromLoadedFile:
+    def test_runs_without_error(self, tmp_path, two_segments, raw_data, capsys):
         out = tmp_path / "out.h5"
         write(out, two_segments, raw_data=raw_data)
-        _, raw = load_processed(out)
-        for seg_name, sp in two_segments.items():
-            t_start, t_end = float(sp.t[0]), float(sp.t[-1])
-            orb_t = raw[seg_name]["orbit_times"]
-            assert np.all(orb_t >= t_start)
-            assert np.all(orb_t <= t_end)
+        segments, raw = load_processed(out)
+        report_info_from_loaded_file(segments, raw)  # must not raise
+
+    def test_prints_segment_ids(self, tmp_path, two_segments, capsys):
+        out = tmp_path / "out.h5"
+        write(out, two_segments)
+        segments, raw = load_processed(out)
+        report_info_from_loaded_file(segments, raw)
+        captured = capsys.readouterr().out
+        assert "segment0" in captured
+        assert "segment1" in captured
+
+    def test_prints_channel_shapes(self, tmp_path, two_segments, capsys):
+        out = tmp_path / "out.h5"
+        write(out, two_segments)
+        segments, raw = load_processed(out)
+        report_info_from_loaded_file(segments, raw)
+        captured = capsys.readouterr().out
+        assert "shape=" in captured
+
+    def test_prints_raw_data_keys(self, tmp_path, two_segments, raw_data, capsys):
+        out = tmp_path / "out.h5"
+        write(out, two_segments, raw_data=raw_data)
+        segments, raw = load_processed(out)
+        report_info_from_loaded_file(segments, raw)
+        captured = capsys.readouterr().out
+        assert "raw_data_info" in captured
+        assert "orbits" in captured
+
+    def test_empty_raw_data_does_not_raise(self, tmp_path, two_segments, capsys):
+        out = tmp_path / "out.h5"
+        write(out, two_segments)
+        segments, raw = load_processed(out)
+        report_info_from_loaded_file(
+            segments, raw
+        )  # raw is empty dict — must not raise

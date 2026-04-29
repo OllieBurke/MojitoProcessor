@@ -15,7 +15,7 @@ Two loaders are provided:
 
 import json
 import pathlib
-from typing import Dict
+from typing import Dict, Optional
 
 import h5py
 import mojito
@@ -23,7 +23,7 @@ import numpy as np
 
 from ..process.sigprocess import SignalProcessor
 
-__all__ = ["load_file", "load_processed"]
+__all__ = ["load_file", "load_processed", "report_info_from_loaded_file"]
 
 
 def load_file(
@@ -127,8 +127,11 @@ def load_file(
 
 def load_processed(
     path: str | pathlib.Path,
+    *,
+    segment_ids: Optional[list] = None,
 ) -> tuple[Dict[str, SignalProcessor], dict]:
-    """Load processed segments from an HDF5 file written by :func:`~MojitoProcessor.io.write.write`.
+    """Load processed segments from an HDF5 file written by
+    :func:`~MojitoProcessor.io.write.write`.
 
     Reconstructs each :class:`~MojitoProcessor.process.sigprocess.SignalProcessor`
     from the stored channel arrays and metadata attributes.  Per-segment orbit
@@ -140,6 +143,10 @@ def load_processed(
     path : str or Path
         Path to a ``.h5`` file previously written by
         :func:`~MojitoProcessor.io.write.write`.
+    segment_ids : list of int, optional
+        Indices of segments to load, e.g. ``[100, 101, 102]`` loads only
+        ``segment100``, ``segment101``, and ``segment102``.  ``None``
+        (default) loads all segments.
 
     Returns
     -------
@@ -149,18 +156,12 @@ def load_processed(
     raw_data : dict
         Auxiliary data dict.  Top-level keys:
 
+        - ``'orbits'`` — per-spacecraft position/velocity arrays (full span)
         - ``'noise_estimates'`` — dict of noise covariance arrays (if present)
-        - ``'metadata'`` — dict with ``laser_frequency`` / ``pipeline_names`` (if present)
-
-        Per-segment keys (one entry per written segment, absent if no raw data
-        was written for that segment):
-
-        - ``raw_data[seg_name]['orbits']`` — positions array
-        - ``raw_data[seg_name]['velocities']`` — velocities array (if present)
-        - ``raw_data[seg_name]['orbit_times']`` — orbit timestamps
-        - ``raw_data[seg_name]['ltts']`` — dict of LTT arrays
-        - ``raw_data[seg_name]['ltt_derivatives']`` — dict of derivative arrays (if present)
-        - ``raw_data[seg_name]['ltt_times']`` — LTT timestamps
+        - ``'metadata'`` — dict with ``laser_frequency`` / ``pipeline_names``
+          (if present)
+        - ``'<seg_name>_ltts'`` — one entry per segment containing LTT arrays:
+          ``ltts``, ``ltt_derivatives`` (if present), ``ltt_times``
 
     Raises
     ------
@@ -179,6 +180,7 @@ def load_processed(
     path = pathlib.Path(path)
     segments: Dict[str, SignalProcessor] = {}
     raw_data: dict = {}
+    ids = None if segment_ids is None else set(int(i) for i in segment_ids)
 
     with h5py.File(path, "r") as f:
         if "processed" not in f:
@@ -188,6 +190,11 @@ def load_processed(
             )
         processed: h5py.Group = f["processed"]  # type: ignore[assignment]
         for seg_name, grp in processed.items():
+            if ids is not None:
+                if not seg_name.startswith("segment"):
+                    continue
+                if int(seg_name[len("segment") :]) not in ids:
+                    continue
             channels = json.loads(grp.attrs["channels"])
             data = {ch: grp[ch][:] for ch in channels}
             fs = float(grp.attrs["fs"])
@@ -199,6 +206,10 @@ def load_processed(
             return segments, raw_data
 
         raw_grp: h5py.Group = f["raw"]  # type: ignore[assignment]
+
+        # Top-level: full-span orbit arrays
+        if "orbits" in raw_grp:
+            raw_data["orbits"] = {k: raw_grp["orbits"][k][:] for k in raw_grp["orbits"]}
 
         # Top-level: noise estimates
         if "noise_estimates" in raw_grp:
@@ -216,20 +227,12 @@ def load_processed(
                 md["pipeline_names"] = json.loads(meta.attrs["pipeline_names"])
             raw_data["metadata"] = md
 
-        # Per-segment: orbits and LTTs
+        # Per-segment: LTTs (keyed as "<seg_name>_ltts")
         for seg_name in segments:
             if seg_name not in raw_grp:
                 continue
             seg_grp: h5py.Group = raw_grp[seg_name]  # type: ignore[assignment]
             seg_raw: dict = {}
-
-            if "orbits" in seg_grp:
-                orb = seg_grp["orbits"]
-                seg_raw["orbits"] = orb["positions"][:]
-                if "velocities" in orb:
-                    seg_raw["velocities"] = orb["velocities"][:]
-                if "times" in orb:
-                    seg_raw["orbit_times"] = orb["times"][:]
 
             if "ltts" in seg_grp:
                 ltt = seg_grp["ltts"]
@@ -244,6 +247,55 @@ def load_processed(
                     seg_raw["ltt_times"] = ltt["times"][:]
 
             if seg_raw:
-                raw_data[seg_name] = seg_raw
+                raw_data[f"{seg_name}_ltts"] = seg_raw
 
     return segments, raw_data
+
+
+def report_info_from_loaded_file(
+    loaded_segments: Dict[str, SignalProcessor],
+    raw_data_info: dict,
+) -> None:
+    """Print a structured summary of the output of :func:`load_processed`.
+
+    Intended as a quick inspection tool after calling :func:`load_processed`.
+    Prints each segment's metadata and channel shapes, then recursively
+    summarises the ``raw_data`` dict (orbits, noise estimates, LTTs, metadata).
+
+    Parameters
+    ----------
+    loaded_segments : dict of SignalProcessor
+        First return value of :func:`load_processed`.
+    raw_data_info : dict
+        Second return value of :func:`load_processed`.
+
+    Examples
+    --------
+    >>> segments, raw = load_processed("processed.h5")
+    >>> report_info_from_loaded_file(segments, raw)
+    """
+    print("=== loaded_segments ===")
+    for seg_id, sp in loaded_segments.items():
+        print(f"  {seg_id}: {sp}")
+        for ch, arr in sp.data.items():
+            if hasattr(arr, "shape"):
+                print(f"    data['{ch}']: shape={arr.shape}, dtype={arr.dtype}")
+
+    print("\n=== raw_data_info — top-level keys ===")
+    for key, val in raw_data_info.items():
+        if isinstance(val, dict):
+            print(f"  '{key}': dict with keys {list(val.keys())}")
+            for subkey, subval in val.items():
+                if isinstance(subval, np.ndarray):
+                    print(f"    '{subkey}': shape={subval.shape}, dtype={subval.dtype}")
+                elif isinstance(subval, dict):
+                    print(f"    '{subkey}': dict with keys {list(subval.keys())}")
+                    for k2, v2 in subval.items():
+                        if isinstance(v2, np.ndarray):
+                            print(f"      '{k2}': shape={v2.shape}, dtype={v2.dtype}")
+                else:
+                    print(f"    '{subkey}': {subval}")
+        elif isinstance(val, np.ndarray):
+            print(f"  '{key}': shape={val.shape}, dtype={val.dtype}")
+        else:
+            print(f"  '{key}': {val}")
