@@ -34,6 +34,7 @@ def read_and_process(
     truncate_kwargs: Optional[dict] = None,
     window_kwargs: Optional[dict] = None,
     output_path: Optional[str | pathlib.Path] = None,
+    segment_ids: Optional[list] = None,
 ) -> Dict[str, SignalProcessor]:
     """
     Load a MojitoL1 file and run the full processing pipeline in one call.
@@ -65,6 +66,10 @@ def read_and_process(
     output_path : str or Path, optional
         If given, write processed segments and raw auxiliary data to this
         HDF5 file.
+    segment_ids : list of int, optional
+        Indices of segments to write to *output_path*, e.g. ``[0, 3]``.
+        ``None`` (default) writes all segments.  Ignored when *output_path*
+        is ``None``.
 
     Returns
     -------
@@ -90,6 +95,7 @@ def read_and_process(
             output_path,
             segments,
             raw_data=data,
+            segment_ids=segment_ids,
             filter_kwargs=filter_kwargs,
             downsample_kwargs=downsample_kwargs,
             trim_kwargs=trim_kwargs,
@@ -180,6 +186,14 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="ALPHA",
         help="Taper fraction for tukey/planck windows",
     )
+    p.add_argument(
+        "--segment-ids",
+        nargs="+",
+        type=int,
+        default=None,
+        metavar="ID",
+        help="Segment indices to write, e.g. --segment-ids 0 3 7 (default: all)",
+    )
     return p
 
 
@@ -203,6 +217,7 @@ if __name__ == "__main__":
         truncate_kwargs={"days": args.segment_days},
         window_kwargs={"window": args.window, "alpha": args.window_alpha},
         output_path=args.output,
+        segment_ids=args.segment_ids,
     )
 
     print(f"\nProcessed {len(segments)} segment(s):")

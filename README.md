@@ -44,7 +44,7 @@ uv run pre-commit run --all-files
 ## Quick Start
 
 ```python
-from MojitoProcessor import load_file, load_processed, process_pipeline, write
+from MojitoProcessor import load_file, load_processed, process_pipeline, write, read_and_process
 
 # ── Load Mojito L1 data ───────────────────────────────────────────────────────
 data = load_file("mojito_data.h5")
@@ -93,6 +93,7 @@ print(f"Duration:      {sp.T / 86400:.2f} days")
 print(f"TCB start:     {sp.t0:.6g} s")
 
 # ── Write to HDF5 ─────────────────────────────────────────────────────────────
+# Use segment_ids to write only a subset, e.g. segment_ids=[0, 1, 2]
 write(
     "processed.h5",
     processed_segments,
@@ -103,12 +104,21 @@ write(
     truncate_kwargs=truncate_kwargs,
     window_kwargs=window_kwargs,
 )
+
+# ── Reload from HDF5 (deferred analysis, select specific segments) ────────────
+segments, raw_data = load_processed(
+    "processed.h5",
+    segment_ids=[0, 1, 2],   # omit to load all segments
+)
+# raw_data["orbits"]["sc_position_1"]  → full-span spacecraft positions [m]
+# raw_data["noise_estimates"]["xyz"]   → frequency-domain noise covariance cubes
+# raw_data["metadata"]                 → laser frequency and pipeline names
 ```
 
 Alternatively, load, process, and write in a single call using the high-level pipeline:
 
 ```python
-from MojitoProcessor.pipelines import read_and_process
+from MojitoProcessor import read_and_process
 
 segments = read_and_process(
     "mojito_data.h5",
@@ -125,9 +135,9 @@ segments = read_and_process(
 
 - **Load** — `load_file` reads LISA Mojito L1 HDF5 files via the [`mojito`](https://gitlab.esa.int/lisa-commons/mojito) package
 - **Process** — `process_pipeline` applies filtering, downsampling, trimming, segmentation, and windowing in a single call
-- **Write** — `write` saves processed segments and raw auxiliary data (LTTs, orbits, noise estimates) to HDF5
-- **Reload** — `load_processed` reads a file written by `write` back into a `dict[str, SignalProcessor]`, enabling deferred analysis without reprocessing
-- **Pipeline** — `read_and_process` combines load, process, and write into one function, with an optional CLI interface
+- **Write** — `write` saves processed segments and raw auxiliary data (orbits, noise estimates, LTTs) to HDF5; use `segment_ids` to write only a subset of segments
+- **Reload** — `load_processed` reads a written file back into a `dict[str, SignalProcessor]` plus a `raw_data` dict (orbits, noise estimates, metadata); use `segment_ids` to load only the segments you need
+- **Pipeline** — `read_and_process` combines load, process, and write into one function, with `segment_ids` support and an optional CLI interface
 - **TCB time tracking** — `t0` is propagated through every processing step, including segmentation
 - **TDI channel support** — XYZ and AET (via `SignalProcessor.to_aet()`)
 
