@@ -70,11 +70,6 @@ def load_file(
         n_ltt = (
             int(load_days * 86400 * ltt_sampling.fs) if load_days else ltt_sampling.size
         )
-        n_orbit = (
-            int(load_days * 86400 * orbit_sampling.fs)
-            if load_days
-            else orbit_sampling.size
-        )
 
         data = {
             # ── TDI observables ──────────────────────────────────────────────────
@@ -108,9 +103,9 @@ def load_file(
             },
             "ltt_times": ltt_sampling.t(slice(None, n_ltt)),
             # ── Spacecraft orbits ────────────────────────────────────────────────
-            "orbits": f.orbits.positions[:n_orbit],  # (n_orbit, 3, 3)
-            "velocities": f.orbits.velocities[:n_orbit],  # (n_orbit, 3, 3)
-            "orbit_times": orbit_sampling.t(slice(None, n_orbit)),
+            "orbits": f.orbits.positions[:],  # (n_orbit, 3, 3)
+            "velocities": f.orbits.velocities[:],  # (n_orbit, 3, 3)
+            "orbit_times": orbit_sampling.t(slice(None)),
             # ── Noise estimates (frequency-domain, not truncated) ────────────────
             "noise_estimates": {
                 "xyz": f.noise_estimates.xyz[:],
