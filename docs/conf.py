@@ -11,7 +11,7 @@ sys.path.insert(0, str(REPO_ROOT))
 # -- Project information -----------------------------------------------------
 project = "MojitoProcessor"
 author = "Ollie Burke"
-release = "0.5.1"
+release = "0.6.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
