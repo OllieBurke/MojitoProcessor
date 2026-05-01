@@ -1,23 +1,30 @@
 Installation
 ============
 
+From PyPI
+---------
+
+.. code-block:: bash
+
+   pip install mojito-processor
+
+Or with `uv <https://docs.astral.sh/uv/>`_:
+
+.. code-block:: bash
+
+   uv pip install mojito-processor
+
 Requirements
 ------------
 
 - Python ≥ 3.12
-- `mojito <https://gitlab.esa.int/lisa-commons/mojito>`_ ≥ 0.5.0
+- `mojito <https://pypi.org/project/mojito/>`_ ≥ 0.5.0
 - ``numpy >= 2.0``
 - ``scipy >= 1.10``
 - ``h5py``
 
-.. note::
-
-   ``mojito`` must be installed from source. Locate the ``mojito`` root
-   directory and run:
-
-   .. code-block:: bash
-
-      uv pip install .
+All dependencies are installed automatically when you install ``mojito-processor``
+via pip or uv.
 
 ``matplotlib`` is required only for the example notebooks and is not a
 core dependency.

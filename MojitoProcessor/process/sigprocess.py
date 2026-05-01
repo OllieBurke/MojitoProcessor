@@ -695,7 +695,7 @@ def process_pipeline(
     trim_kwargs: Optional[Dict] = None,
     truncate_kwargs: Optional[Dict] = None,
     window_kwargs: Optional[Dict] = None,
-) -> Dict[str, SignalProcessor]:
+) -> dict:
     """
     Run the full TDI data processing pipeline on a MojitoData object.
 
@@ -746,9 +746,9 @@ def process_pipeline(
     Returns
     -------
     segments : dict of SignalProcessor
-        Dictionary mapping segment names ('segment0', 'segment1', ...) to
-        SignalProcessor objects. Each segment contains windowed data ready
-        for FFT analysis. Access via ``segments['segment0'].data``,
+        Dictionary mapping segment names (``'segment0'``, ``'segment1'``, …)
+        to :class:`SignalProcessor` objects. Each segment contains windowed
+        data ready for FFT analysis. Access via ``segments['segment0'].data``,
         ``segments['segment0'].fs``, etc.
 
     """

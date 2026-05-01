@@ -8,8 +8,9 @@ license = {text = "MIT"}
 authors = [
     {name = "Ollie Burke", email = "ollie.burke@glasgow.ac.uk"},
 ]
+keywords = ["LISA", "gravitational-waves", "signal-processing", "TDI", "noise-analysis", "space-detector"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -41,6 +42,7 @@ dev = [
     "pre-commit>=3.6.0",
     "mypy>=1.8.0",
     "nb-clean>=4.0.1",
+    "twine>=6.2.0",
 ]
 docs = [
     "sphinx>=7.0",
