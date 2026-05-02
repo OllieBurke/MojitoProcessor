@@ -4,7 +4,7 @@ type: software
 title: "MojitoProcessor"
 version: "0.6.3"
 doi: 10.5281/zenodo.19881845
-date-released: 2026-04-02
+date-released: 2026-05-02
 url: "https://github.com/OllieBurke/MojitoProcessor"
 repository-code: "https://github.com/OllieBurke/MojitoProcessor"
 license: MIT

@@ -3,7 +3,7 @@
   "description": "Postprocessing tools for LISA Mojito L01 data for use with L2D noise analysis. The package applies a signal processing pipeline (filtering, downsampling, trimming, windowing) to data loaded via the mojito package. The design emphasizes ease of use and flexibility, allowing users to customize the processing steps as needed for their specific analysis tasks.",
   "upload_type": "software",
   "license": "MIT",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "creators": [
     {
       "name": "Burke, Ollie",
