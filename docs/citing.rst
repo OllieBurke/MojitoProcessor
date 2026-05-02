@@ -3,11 +3,11 @@ Citing MojitoProcessor
 
 If you use MojitoProcessor in your research, please cite it using the following DOI:
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.18718620.svg
-   :target: https://doi.org/10.5281/zenodo.18718620
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.19881845.svg
+   :target: https://doi.org/10.5281/zenodo.19881845
    :alt: DOI
 
-The DOI ``10.5281/zenodo.18718620`` represents all versions and always resolves to the latest release. To cite a specific version, find its DOI on the `Zenodo record <https://doi.org/10.5281/zenodo.18718620>`_.
+The DOI ``10.5281/zenodo.19881845`` represents all versions and always resolves to the latest release. To cite a specific version, find its DOI on the `Zenodo record <https://doi.org/10.5281/zenodo.19881845>`_.
 
 BibTeX
 ------
@@ -18,8 +18,8 @@ BibTeX
      author       = {Burke, Ollie},
      title        = {MojitoProcessor},
      publisher    = {Zenodo},
-     doi          = {10.5281/zenodo.18718620},
-     url          = {https://doi.org/10.5281/zenodo.18718620}
+     doi          = {10.5281/zenodo.19881845},
+     url          = {https://doi.org/10.5281/zenodo.19881845}
    }
 
 Similarly, to cite the Mojito datasets and software package, please acknowledge the following:
